@@ -148,7 +148,7 @@ def plant_outbreak(iso, ward, phenotype, organism, start, weeks=3, cases=6, seed
 
 
 if __name__ == "__main__":
-    out = Path("outputs"); out.mkdir(exist_ok=True)
+    out = cw.OUTPUT_DIR; out.mkdir(parents=True, exist_ok=True)
     ast, iso = cw.load_ast(), load_isolates()
     pd.set_option("display.width", 160)
 
