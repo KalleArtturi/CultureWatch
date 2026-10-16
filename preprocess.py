@@ -3,9 +3,10 @@ Same logic as the preprocessing notebook, as a script that stops on bad data.
 Run:  python preprocess.py"""
 from pathlib import Path
 import pandas as pd
+import cw_utils as cw
 
-DATA_DIR = Path("synthetic_microbiology_dataset")
-OUT_DIR = Path("processed")
+DATA_DIR = cw.RAW_DIR
+OUT_DIR = cw.PROCESSED
 
 REQUIRED_COLUMNS = {
     "patients": ["patient_id", "sex", "birth_year"],
@@ -104,7 +105,7 @@ def build(t):
 
 
 def save(iso, ast, out_dir=OUT_DIR):
-    out_dir.mkdir(exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
     iso.to_csv(out_dir / "isolates_joined.csv", index=False)
     ast.to_csv(out_dir / "ast_joined.csv", index=False)
 

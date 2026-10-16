@@ -97,7 +97,7 @@ def recommend(cov):
 
 
 if __name__ == "__main__":
-    out = Path("outputs"); out.mkdir(exist_ok=True)
+    out = cw.OUTPUT_DIR; out.mkdir(parents=True, exist_ok=True)
     ast = cw.load_ast()
     rows = []
     for name, s in SCENARIOS.items():

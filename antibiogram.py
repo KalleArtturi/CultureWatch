@@ -52,7 +52,7 @@ def plot_antibiogram(labels, pct, n, title="Antibiogram", path=None):
 
 
 if __name__ == "__main__":
-    out = Path("outputs"); out.mkdir(exist_ok=True)
+    out = cw.OUTPUT_DIR; out.mkdir(parents=True, exist_ok=True)
     ast = cw.load_ast()
     examples = {
         "all_years_all_specimens": {},

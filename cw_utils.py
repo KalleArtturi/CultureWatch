@@ -4,7 +4,14 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-PROCESSED = Path("data/processed")
+
+# ---- All project paths live here. Change them in this one place only. ----
+ROOT = Path(__file__).resolve().parent            # the CultureWatch folder (where this file is)
+DATA_DIR = ROOT / "data"
+RAW_DIR = ROOT / "synthetic_microbiology_dataset"  # raw CSVs; use DATA_DIR / "..." if you moved them into data/
+PROCESSED = DATA_DIR / "processed"                # created by preprocess.py
+OUTPUT_DIR = ROOT / "outputs"                     # charts and tables from the analysis scripts
+
 MIN_ISOLATES = 30
 AGE_BINS = [0, 18, 65, 200]
 AGE_LABELS = ["0-17", "18-64", "65+"]

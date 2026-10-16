@@ -58,6 +58,6 @@ logs/
 
 # Data (uncomment if you don't want datasets in the repo)
 data/
-# synthetic_micr*/
+synthetic_micr*/
 # *.csv
 # *.parquet
