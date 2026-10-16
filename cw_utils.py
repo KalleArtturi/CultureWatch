@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-PROCESSED = Path("processed")
+PROCESSED = Path("data/processed")
 MIN_ISOLATES = 30
 AGE_BINS = [0, 18, 65, 200]
 AGE_LABELS = ["0-17", "18-64", "65+"]
