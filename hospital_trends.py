@@ -35,7 +35,8 @@ def compare_settings(ast, pairs=KEY_PAIRS, **filters):
                          n_community=len(com), pct_community=com.mean(),
                          n_hospital=len(hosp), pct_hospital=hosp.mean(),
                          diff_pp=(hosp.mean() - com.mean()) * 100, p_value=p))
-    out = pd.DataFrame(rows)
+    out = pd.DataFrame(rows, columns=["organism", "antibiotic_code", "n_community", "pct_community",
+                                      "n_hospital", "pct_hospital", "diff_pp", "p_value"])
     out["significant"] = out.p_value < 0.05
     return out
 
@@ -83,6 +84,8 @@ def trend_table(ast, organism, antibiotic, time_col="quarter", **filters):
 def cochran_armitage(r, n):
     """Test whether a proportion changes linearly over ordered time steps (two-sided)."""
     r, n = np.asarray(r, float), np.asarray(n, float)
+    if len(r) < 2 or n.sum() == 0:
+        return 0.0, 1.0
     x = np.arange(len(r))
     p_bar = r.sum() / n.sum()
     t_stat = np.sum(x * (r - n * p_bar))
@@ -95,10 +98,12 @@ def trend_summary(ast, pairs=KEY_PAIRS, **filters):
     rows = []
     for org, ab in pairs:
         t = trend_table(ast, org, ab, **filters)
+        if len(t) < 2:
+            continue  # not enough data over time for this pair with these filters
         rows.append(dict(organism=org, antibiotic_code=ab, first=t.pct_resistant.iloc[0],
                          last=t.pct_resistant.iloc[-1], z=t.attrs["z"], p_value=t.attrs["p_value"],
                          direction=t.attrs["direction"]))
-    out = pd.DataFrame(rows)
+    out = pd.DataFrame(rows, columns=["organism", "antibiotic_code", "first", "last", "z", "p_value", "direction"])
     out["significant"] = out.p_value < 0.05
     return out
 
