@@ -28,7 +28,7 @@ env/
 *.pem
 *.key
 secrets.json
-enviroment.yml
+environment.yml
 
 # Editors
 .vscode/
