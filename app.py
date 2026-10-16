@@ -89,11 +89,14 @@ with tabs[0]:
             wide = (by_year[by_year.reportable & by_year.period.isin([prev, last])]
                     .pivot_table(index=["organism", "antibiotic_code"], columns="period", values="pct_resistant")
                     .dropna())
-            wide["change (pp)"] = (wide[last] - wide[prev]) * 100
-            top = wide.reindex(wide["change (pp)"].abs().sort_values(ascending=False).index).head(5)
-            st.dataframe(top.style.format({prev: "{:.1%}", last: "{:.1%}", "change (pp)": "{:+.1f}"}),
-                         width="stretch")
-            st.caption(f"{prev} → {last}. Period filter is ignored here.")
+            if {prev, last} <= set(wide.columns) and len(wide):  # 30-isolate rule can leave nothing to compare
+                wide["change (pp)"] = (wide[last] - wide[prev]) * 100
+                top = wide.reindex(wide["change (pp)"].abs().sort_values(ascending=False).index).head(5)
+                st.dataframe(top.style.format({prev: "{:.1%}", last: "{:.1%}", "change (pp)": "{:+.1f}"}),
+                             width="stretch")
+                st.caption(f"{prev} → {last}. Period filter is ignored here.")
+            else:
+                st.info(f"Too few isolates (n<{cw.MIN_ISOLATES}) to compare years with these filters.")
         else:
             st.info("Need at least two periods to compare.")
 
@@ -117,6 +120,11 @@ with tabs[2]:
     s_filters = preset["filters"] if preset else filters
 
     cov = tg.coverage_table(ast, target=target, **s_filters)
+    n_scen = int(cov.n_isolates.iloc[0]) if len(cov) else 0
+    if n_scen < cw.MIN_ISOLATES:  # 30-isolate rule
+        st.warning(f"Only {n_scen} isolates match this scenario. At least {cw.MIN_ISOLATES} are needed "
+                   "for a reliable coverage estimate, so no suggestion is shown. Widen the sidebar filters.")
+        st.stop()
     pick = tg.recommend(cov)
     mix = tg.organism_mix(ast, **s_filters)
 
@@ -161,8 +169,9 @@ with tabs[3]:
                      [["organism", "antibiotic", "n_community", "pct_community", "n_hospital",
                        "pct_hospital", "diff_pp", "p_value", "significant"]]
                      .style.format({"pct_community": "{:.1%}", "pct_hospital": "{:.1%}",
-                                    "diff_pp": "{:+.1f}", "p_value": "{:.3f}"}),
+                                    "diff_pp": "{:+.1f}", "p_value": "{:.3f}"}, na_rep=f"n<{cw.MIN_ISOLATES}"),
                      width="stretch", hide_index=True)
+        st.caption(f"\"n<{cw.MIN_ISOLATES}\": one of the two groups has too few isolates for a reliable comparison.")
 
     st.subheader("Ward profile")
     st.caption("Ward and setting filters are ignored here, so all wards can be compared.")
@@ -170,10 +179,11 @@ with tabs[3]:
     st.dataframe(wp[["first_isolates", "hospital_onset_share", "esbl_pct", "esbl_p_above",
                      "mrsa_pct", "mrsa_p_above", "vre_n", "cpe_n"]]
                  .style.format({"hospital_onset_share": "{:.0%}", "esbl_pct": "{:.1%}", "mrsa_pct": "{:.1%}",
-                                "esbl_p_above": "{:.3f}", "mrsa_p_above": "{:.3f}"})
+                                "esbl_p_above": "{:.3f}", "mrsa_p_above": "{:.3f}"}, na_rep=f"n<{cw.MIN_ISOLATES}")
                  .highlight_between(subset=["esbl_p_above", "mrsa_p_above"], right=0.05, color="#FFC7CE"),
                  width="stretch")
-    st.caption("Red p-values: ward rate significantly above the overall rate (p < 0.05).")
+    st.caption(f"Red p-values: ward rate significantly above the overall rate (p < 0.05). "
+               f"\"n<{cw.MIN_ISOLATES}\": too few E. coli/K. pneumoniae (ESBL) or S. aureus (MRSA) isolates on that ward.")
 
 # ---------- 5. Trends & Alerts ----------
 with tabs[4]:
@@ -181,16 +191,22 @@ with tabs[4]:
     st.caption("Period filter is ignored here, since this view shows all periods.")
     t_filters = {**filters, "period": None}
     c1, c2 = st.columns(2)
-    org = c1.selectbox("Organism", sorted(ast.organism.unique()),
-                       index=sorted(ast.organism.unique()).index("Escherichia coli"))
-    abs_for_org = sorted(ast[(ast.organism == org) & ~ast.intrinsic].antibiotic_code.unique())
+    t_ast = cw.apply_filters(ast, **t_filters)  # only offer organisms/antibiotics that exist for these filters
+    orgs = sorted(t_ast.organism.unique())
+    org = c1.selectbox("Organism", orgs, index=orgs.index("Escherichia coli") if "Escherichia coli" in orgs else 0)
+    abs_for_org = sorted(t_ast[(t_ast.organism == org) & ~t_ast.intrinsic].antibiotic_code.unique())
     abx = c2.selectbox("Antibiotic", abs_for_org, format_func=ab_label,
                        index=abs_for_org.index("TMP") if "TMP" in abs_for_org else 0)
     tt = ht.trend_table(ast, org, abx, **t_filters)
     if len(tt) >= 2:
         fig, axis = plt.subplots(figsize=(9, 3.5))
-        axis.plot(tt.quarter, tt.pct_resistant, marker="o")
-        axis.fill_between(tt.quarter, tt.ci_low, tt.ci_high, alpha=0.2)
+        ok = tt.n_tested >= cw.MIN_ISOLATES  # 30-isolate rule per quarter
+        axis.plot(tt.quarter, tt.pct_resistant.where(ok), marker="o")  # line only through reliable quarters
+        axis.scatter(tt.quarter[~ok], tt.pct_resistant[~ok], facecolors="none", edgecolors="grey",
+                     label=f"n<{cw.MIN_ISOLATES} (unreliable)")
+        axis.fill_between(tt.quarter, tt.ci_low.where(ok), tt.ci_high.where(ok), alpha=0.2)
+        if (~ok).any():
+            axis.legend(loc="upper left", fontsize=8)
         axis.axhline(0.20, ls="--", color="red", lw=0.8)
         axis.set_ylabel("% resistant"); axis.yaxis.set_major_formatter(lambda v, _: f"{v:.0%}")
         axis.tick_params(axis="x", rotation=45)
@@ -198,6 +214,9 @@ with tabs[4]:
         verdict = "significant" if tt.attrs["p_value"] < 0.05 else "not significant"
         st.write(f"Trend: **{tt.attrs['direction']}**, {verdict} (p = {tt.attrs['p_value']:.3f}). "
                  "Dashed line = 20%, a common limit for empirical use.")
+        if (~ok).any():
+            st.caption(f"{(~ok).sum()} of {len(tt)} quarters have fewer than {cw.MIN_ISOLATES} tests and are shown "
+                       "as hollow grey points. The trend test still uses them, weighted by their small size.")
     else:
         st.info("Not enough data over time for this selection.")
 
