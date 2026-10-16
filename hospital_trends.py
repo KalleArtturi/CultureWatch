@@ -37,6 +37,9 @@ def compare_settings(ast, pairs=KEY_PAIRS, **filters):
                          diff_pp=(hosp.mean() - com.mean()) * 100, p_value=p))
     out = pd.DataFrame(rows, columns=["organism", "antibiotic_code", "n_community", "pct_community",
                                       "n_hospital", "pct_hospital", "diff_pp", "p_value"])
+    # 30-isolate rule: hide % and test result when either group is too small
+    small = (out.n_community < cw.MIN_ISOLATES) | (out.n_hospital < cw.MIN_ISOLATES)
+    out.loc[small, ["pct_community", "pct_hospital", "diff_pp", "p_value"]] = np.nan
     out["significant"] = out.p_value < 0.05
     return out
 
@@ -62,6 +65,9 @@ def ward_profile(iso):
         overall = out[f"{ph}_n"].sum() / out[f"{ph}_base"].sum()
         out[f"{ph}_p_above"] = [stats.binomtest(int(k), int(n), overall, alternative="greater").pvalue if n else np.nan
                                 for k, n in zip(out[f"{ph}_n"], out[f"{ph}_base"])]
+        # 30-isolate rule: no % or test for wards with too few isolates in the base group
+        small = out[f"{ph}_base"] < cw.MIN_ISOLATES
+        out.loc[small, [f"{ph}_pct", f"{ph}_p_above"]] = np.nan
     return out.sort_values("esbl_pct", ascending=False)
 
 

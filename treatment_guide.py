@@ -7,6 +7,7 @@ so the organism mix is built in automatically.
 - Untested pairs count as NOT covered (in this dataset they are intrinsic resistance or not relevant),
   except two standard EUCAST inference rules (see infer_susceptibility).
 - If no single antibiotic reaches the target, two-drug combinations are tried.
+- Scenarios with fewer than 30 isolates get no recommendation (same rule as the antibiogram).
 """
 from itertools import combinations
 from pathlib import Path
@@ -70,7 +71,11 @@ def organism_mix(ast, **filters):
 
 def coverage_table(ast, target=0.85, combos=True, **filters):
     """Expected coverage per antibiotic (and two-drug combos) with 95% CI and stewardship tier."""
-    m = susceptibility_matrix(cw.apply_filters(ast, **filters))
+    df = cw.apply_filters(ast, **filters)
+    if df.empty:  # no isolates match: return an empty table with the right columns instead of crashing
+        return pd.DataFrame(columns=["regimen", "n_drugs", "tier", "n_covered", "n_isolates", "coverage",
+                                     "ci_low", "ci_high", "tier_name", "meets_target", "reportable"])
+    m = susceptibility_matrix(df)
     m = m.drop(columns=[c for c in NOT_TREATMENT if c in m]).fillna(0)
     n = len(m)
     regimens = {(ab,): m[ab] for ab in m.columns}
@@ -87,12 +92,14 @@ def coverage_table(ast, target=0.85, combos=True, **filters):
     out["ci_low"], out["ci_high"] = cw.wilson_ci(out.n_covered, n)
     out["tier_name"] = out.tier.map(TIER_NAMES)
     out["meets_target"] = out.coverage >= target
+    out["reportable"] = n >= cw.MIN_ISOLATES  # 30-isolate rule: same as the antibiogram
     return out.sort_values("coverage", ascending=False).reset_index(drop=True)
 
 
 def recommend(cov):
-    """Prefer one drug over two, then the narrowest tier, then the highest coverage."""
-    ok = cov[cov.meets_target].sort_values(["n_drugs", "tier", "coverage"], ascending=[True, True, False])
+    """Prefer one drug over two, then the narrowest tier, then the highest coverage.
+    Returns None if the scenario has fewer than MIN_ISOLATES isolates (30-isolate rule)."""
+    ok = cov[cov.meets_target & cov.reportable].sort_values(["n_drugs", "tier", "coverage"], ascending=[True, True, False])
     return ok.regimen.iloc[0] if len(ok) else None
 
 
