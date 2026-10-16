@@ -1,0 +1,63 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environments (conda env lives in miniforge3, but just in case)
+.venv/
+venv/
+env/
+.conda/
+
+# Secrets and local config
+.env
+.env.*
+*.pem
+*.key
+secrets.json
+enviroment.yml
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# ML artifacts
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+*.h5
+*.pkl
+*.joblib
+models/
+checkpoints/
+outputs/
+
+# Experiment tracking and logs
+runs/
+wandb/
+mlruns/
+lightning_logs/
+logs/
+*.log
+
+# Data (uncomment if you don't want datasets in the repo)
+data/
+# synthetic_micr*/
+# *.csv
+# *.parquet
