@@ -15,6 +15,7 @@ OUTPUT_DIR = ROOT / "outputs"                     # charts and tables from the a
 MIN_ISOLATES = 30
 AGE_BINS = [0, 18, 65, 200]
 AGE_LABELS = ["0-17", "18-64", "65+"]
+WINDOWS = {"4w": 28, "12m": 365}  # rolling windows in days, ending at the latest sample date
 
 
 def load_ast(path=PROCESSED / "ast_joined.csv", first_only=True):
@@ -24,9 +25,19 @@ def load_ast(path=PROCESSED / "ast_joined.csv", first_only=True):
     return ast[ast.first_isolate].copy() if first_only else ast
 
 
-def apply_filters(df, period=None, specimen=None, setting=None, ward=None, sex=None, age_group=None):
+def window_dates(latest, window, offset=0):
+    """(start, end) of a rolling window ending at `latest`, e.g. '12m' = the last 365 days.
+    offset=1 gives the window just before it (previous 12 months), for comparisons."""
+    days = pd.Timedelta(days=WINDOWS[window])
+    end = pd.Timestamp(latest) - offset * days
+    return end - days + pd.Timedelta(days=1), end
+
+
+def apply_filters(df, period=None, specimen=None, setting=None, ward=None, sex=None, age_group=None,
+                  date_from=None, date_to=None):
     """Filter the AST table. Each argument takes one value or a list; None means no filter.
-    setting: 'community' (outpatients), 'inpatient', or 'hospital_onset' (sampled day 3+)."""
+    setting: 'community' (outpatients), 'inpatient', or 'hospital_onset' (sampled day 3+).
+    date_from / date_to: inclusive sample_date range (see window_dates for rolling windows)."""
     def pick(d, col, val):
         if val is None:
             return d
@@ -37,6 +48,10 @@ def apply_filters(df, period=None, specimen=None, setting=None, ward=None, sex=N
     df = pick(df, "ward_code", ward)
     df = pick(df, "sex", sex)
     df = pick(df, "age_group", age_group)
+    if date_from is not None:
+        df = df[df.sample_date >= pd.Timestamp(date_from)]
+    if date_to is not None:
+        df = df[df.sample_date <= pd.Timestamp(date_to)]
     if setting == "community":
         df = df[df.ward_type == "out"]
     elif setting == "inpatient":

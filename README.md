@@ -37,6 +37,24 @@ streamlit run app.py
 
 Your browser opens at http://localhost:8501. If anything here is unfamiliar, follow the full guide below.
 
+### Web UI (TypeScript)
+
+A React + TypeScript front end in `web/`, built around the ward: it opens on your ward's last 4 weeks (cluster alerts vs the ward's usual level) and last 12 months (resistance vs the previous 12 months and vs all sites). It talks to a small FastAPI layer in `api/` that calls the same Python functions as the Streamlit app, so both always show the same numbers.
+
+Needs [Node.js](https://nodejs.org) 20+ in addition to the conda environment. After `python run_pipeline.py`, run in two terminals:
+
+```bash
+# terminal 1: the API (from the CultureWatch folder, environment active)
+uvicorn api.main:app --reload --port 8000
+
+# terminal 2: the web UI
+cd web
+npm install        # first time only
+npm run dev
+```
+
+Open http://localhost:5173. The API's own docs are at http://localhost:8000/docs.
+
 ---
 
 ## Full setup guide (from zero)

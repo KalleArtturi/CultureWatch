@@ -44,6 +44,16 @@ def compare_settings(ast, pairs=KEY_PAIRS, **filters):
     return out
 
 
+def rate_change_p(k1, n1, k0, n0):
+    """Two-sided Fisher's exact test: does k1/n1 differ from k0/n0? (same test as compare_settings)"""
+    return float(stats.fisher_exact([[k1, n1 - k1], [k0, n0 - k0]])[1])
+
+
+def above_rate_p(k, n, p0):
+    """One-sided binomial test: is k/n above the reference rate p0? (same test as ward_profile)"""
+    return float(stats.binomtest(int(k), int(n), p0, alternative="greater").pvalue)
+
+
 # ---------- 2. Ward hotspots ----------
 def ward_profile(iso):
     """Per ward: first isolates, hospital-onset share, ESBL %, MRSA %, VRE and CPE counts."""
@@ -124,6 +134,14 @@ def weekly_counts(iso, phenotype):
     return counts.reindex(index=sorted(iso.ward_code.unique()), columns=weeks, fill_value=0)
 
 
+def window_test(v, t, window=4, baseline=52):
+    """Cases in weeks [t-window, t) vs what the `baseline` weeks before predict.
+    Returns (observed, expected, p) with p = Poisson P(X >= observed)."""
+    observed = v[t - window:t].sum()
+    expected = v[max(t - window - baseline, 0):t - window].mean() * window
+    return int(observed), float(expected), float(stats.poisson.sf(observed - 1, max(expected, 0.1)))
+
+
 def detect_clusters(counts, window=4, baseline=52, min_cases=3, alpha=0.01):
     """Flag ward-weeks where cases in the last `window` weeks exceed what the ward's previous
     `baseline` weeks predict (Poisson upper-tail test). Simple and explainable on purpose."""
@@ -131,9 +149,7 @@ def detect_clusters(counts, window=4, baseline=52, min_cases=3, alpha=0.01):
     for ward, s in counts.iterrows():
         v = s.values
         for t in range(baseline + window, len(v) + 1):
-            observed = v[t - window:t].sum()
-            expected = v[t - window - baseline:t - window].mean() * window
-            p = stats.poisson.sf(observed - 1, max(expected, 0.1))  # P(X >= observed)
+            observed, expected, p = window_test(v, t, window, baseline)
             if observed >= min_cases and p < alpha:
                 alerts.append(dict(ward_code=ward, week_index=t, window_end=str(s.index[t - 1]),
                                    observed=int(observed), expected=round(expected, 2), p_value=p))
@@ -141,6 +157,17 @@ def detect_clusters(counts, window=4, baseline=52, min_cases=3, alpha=0.01):
     # keep only the first week of each run of consecutive alerts on the same ward
     is_new_run = out.groupby("ward_code").week_index.diff().ne(1)
     return out[is_new_run].drop(columns="week_index").reset_index(drop=True)
+
+
+def current_status(counts, window=4, baseline=52, min_cases=3, alpha=0.01):
+    """Every ward's latest `window` weeks vs its baseline, same test as detect_clusters.
+    Unlike detect_clusters this returns all wards, so a ward page can show 'normal' too."""
+    rows = []
+    for ward, s in counts.iterrows():
+        observed, expected, p = window_test(s.values, len(s), window, baseline)
+        rows.append(dict(ward_code=ward, window_end=str(s.index[-1]), observed=observed,
+                         expected=round(expected, 2), p_value=p, alert=observed >= min_cases and p < alpha))
+    return pd.DataFrame(rows, columns=["ward_code", "window_end", "observed", "expected", "p_value", "alert"])
 
 
 def plant_outbreak(iso, ward, phenotype, organism, start, weeks=3, cases=6, seed=0):
