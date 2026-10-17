@@ -149,6 +149,45 @@ check("result checks all time: natural-resistance violations", natural, c["impos
 check("result checks all time: ceftriaxone-R without ESBL/CPE (confirm)", unconfirmed,
       next(r["flagged"] for r in api("checks")["rules"] if r["rule"] == "esc_r_unconfirmed"))
 
+# 9. Spread between wards, last 12 months: new carriers, how many had been on another ward in the 30 days
+#    before (any culture counts as a stay), and every ward-to-ward movement with its patient count
+start12, end12 = window_12m(latest)
+new_rows = []
+for ph in ["esbl", "mrsa", "vre", "cpe"]:
+    pos = iso[(iso[ph] == 1) & (iso.sample_date <= latest)].drop_duplicates(["patient_id", "sample_date"])
+    first_pos = pos[pos.groupby("patient_id").sample_date.shift().isna()]
+    first_pos = first_pos[first_pos.sample_date >= start12]
+    new_rows.append(first_pos.assign(phenotype=ph)[["patient_id", "sample_date", "ward_code", "phenotype"]])
+new = pd.concat(new_rows)
+v = cultures[["patient_id", "sample_date", "ward_code"]].merge(new, on="patient_id", suffixes=("", "_f"))
+v = v[(v.sample_date < v.sample_date_f) & (v.sample_date >= v.sample_date_f - pd.Timedelta(days=30))
+      & (v.ward_code != v.ward_code_f)]
+raw_moves = sorted((f, t, ph, int(n)) for (f, t, ph), n in
+                   v.groupby(["ward_code", "ward_code_f", "phenotype"]).patient_id.nunique().items())
+sp = api("spread", window="12m")
+check("spread 12 m: new carriers", new.patient_id.nunique(), sp["new_carriers"])
+check("spread 12 m: were on another ward first", v.patient_id.nunique(), sp["moved"])
+check("spread 12 m: every movement (from, to, type, patients)", raw_moves,
+      sorted((m["from_ward"], m["to_ward"], m["phenotype"], m["patients"]) for m in sp["movements"]))
+
+# 10. Resistance by home area, last 12 months (first isolates in the window)
+w12 = first_in_window(start12, end12)
+areas = {a["home_area"]: a for a in api("home-areas", window="12m")["areas"]}
+for area, g in sorted(w12.groupby("home_area"), key=lambda kv: -len(kv[1]))[:2]:
+    check(f"home area {area}, 12 m: first isolates", len(g), areas[area]["first_isolates"])
+    check(f"home area {area}, 12 m: ESBL cases/n", rate(g, ESBL_BASE, "esbl"),
+          (areas[area]["esbl"]["cases"], areas[area]["esbl"]["n"]))
+
+# 11. Weekly summary: the same 7-day findings as the worklist, and results flagged in those 7 days
+wk = api("weekly")
+check("weekly summary: findings by carrier status", raw_counts,
+      pd.Series([f["status"] for f in wk["findings"]], dtype=object).value_counts().to_dict())
+week_ids = set(iso.loc[iso.sample_date >= latest - pd.Timedelta(days=6), "isolate_id"])
+x_week = x[x.index.isin(week_ids)]
+sa_w, eckp_w = x_week[x_week.organism == "Staphylococcus aureus"], x_week[x_week.organism.isin(ESBL_BASE)]
+check("weekly summary: ceftriaxone-R without ESBL/CPE (confirm)",
+      int(((eckp_w.CRO == "R") & (eckp_w.esbl != 1) & (eckp_w.cpe != 1)).sum()), wk["checks"]["confirm"])
+
 # ---------- Report ----------
 width = max(len(r[0]) for r in rows)
 print(f"Data checked: {RAW.relative_to(ROOT)}\n")
