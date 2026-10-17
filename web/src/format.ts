@@ -79,4 +79,12 @@ export function shortOrg(name: string): string {
   return rest.length ? `${genus[0]}. ${rest.join(' ')}` : name
 }
 
+/** One CSV cell: quoted when needed, and prefixed with ' when it could run as a spreadsheet formula
+ *  (cells starting with = + - @ tab or CR), so an exported file is safe to open in Excel. */
+export function csvCell(v: unknown): string {
+  let s = String(v ?? '')
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+}
+
 export const PHENOTYPE_LABEL: Record<string, string> = { esbl: 'ESBL', mrsa: 'MRSA', vre: 'VRE', cpe: 'CPE' }

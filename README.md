@@ -9,7 +9,33 @@ CultureWatch takes laboratory culture results and shows which antibiotics are li
 
 ## What you get
 
-An interactive web app (runs locally in your browser) with six views:
+Two ways to look at the same numbers:
+
+- **The web app** (`web/`, Finnish and English), built around the people who use it: ward staff, the infection unit and lab scientists. Every feature is listed below.
+- **The Streamlit app** (`app.py`), the team's analysis prototype with six views (table further down).
+
+### Web app: every feature in plain words
+
+| Feature | What it does for you |
+|---|---|
+| **My ward** | Opens on your own ward. A short summary in everyday words, then: anything unusual **in the last 4 weeks** (alerts), and is resistance **worse than last year or than the rest of the hospital** (signals). |
+| **Findings** | The infection unit's daily to-do list: every new resistant bacterium (MRSA, ESBL, VRE, CPE), whether the patient is a **new or known carrier**, where the patient was before, and tick-boxes for who has been told. Export as a line list. |
+| **Result checks** | The checks a lab scientist does before releasing results, run on every isolate (EUCAST rules): results that contradict each other, results that are biologically impossible, and unusual resistance that needs a confirmation test. |
+| **Alerts** | All wards at once: which have more cases than normal right now, plus every past alert. |
+| **Hospital** | The big picture: totals, ward hotspots, hospital vs outpatient resistance. |
+| **Antibiogram** | Colour table: how often each antibiotic fails against each bacterium. Downloadable. |
+| **Treatment guide** | For an infection type, which antibiotic would have worked for most past patients. |
+| **Trends** | Is resistance rising? Plus the **guideline expiry date**: when a common antibiotic crosses the 20% line where doctors stop starting it before the lab result. |
+| **Import** | Upload new lab results as CSV files. Every file is checked first (the pipeline's 16 checks and the result checks); nothing changes unless all checks pass, and the original data can always be restored. |
+| **Methods** | Every rule and calculation, written out. |
+| **Time machine** | Rewind to any week and press Play: the whole app shows what it would have shown that day, so you can watch a real alert fire. |
+| **FI / EN** | The whole app in Finnish and English, with Finnish number and date formats. |
+| **Share / Jaa** | A QR code so anyone can open the same page on their phone. |
+| **Verified numbers** | `verify_numbers.py` recomputes the headline numbers from the raw files with separate code and compares them with the app (22/22 match). |
+
+How to run it: see [Web UI (TypeScript)](#web-ui-typescript) below. A plain-language guide to the web app is in [web/README.md](web/README.md).
+
+### Streamlit app: six views
 
 | View | What it answers |
 |---|---|
@@ -143,7 +169,7 @@ conda config --set channel_priority strict
 conda env create -f environment.yml
 ```
 
-This installs Python 3.11, pandas, numpy, scipy, scikit-learn, matplotlib, JupyterLab and Streamlit into an environment called `CultureWatch`. It takes a few minutes.
+This installs Python 3.11, pandas, numpy, scipy, scikit-learn, matplotlib, JupyterLab, Streamlit, FastAPI and Uvicorn into an environment called `CultureWatch`. It takes a few minutes.
 
 ### Step 5: Activate the environment
 
@@ -206,23 +232,45 @@ CultureWatch/
 ├── README.md                         ← this file
 ├── environment.yml                   ← Python packages for conda
 ├── .gitignore
-├── synthetic_microbiology_dataset/   ← raw CSVs (never edited)
-├── processed/                        ← created by the pipeline (not in Git)
+├── synthetic_microbiology_dataset/   ← raw CSVs (never edited, not in Git)
+├── data/                             ← created locally, not in Git
+│   ├── processed/                    ←   tables made by the pipeline
+│   ├── imports/                      ←   CSV imports (staged files, the imported data in use)
+│   └── demo_batch/                   ←   real data split for the import demo (make_demo_batch.py)
 ├── outputs/                          ← charts and tables from the pipeline (not in Git)
 │
-├── run_pipeline.py                   ← runs everything below in order
+├── run_pipeline.py                   ← runs the four steps below in order
 ├── preprocess.py                     ← step 1: validate, join, first-isolate rule
-├── cw_utils.py                       ← shared helpers: filters, resistance %, confidence intervals
+├── cw_utils.py                       ← shared helpers: filters, rolling windows, resistance %, confidence intervals
 ├── antibiogram.py                    ← step 2: antibiogram tables and heatmaps
 ├── treatment_guide.py                ← step 3: antibiotic coverage per infection scenario
-├── hospital_trends.py                ← step 4: hospital vs community, wards, trends, cluster alerts
-├── app.py                            ← the Streamlit web app
-└── notebooks/                        ← exploration and the original preprocessing notebook
+├── hospital_trends.py                ← step 4: hospital vs community, wards, trends, alerts, carriers, expiry dates
+├── result_checks.py                  ← EUCAST-style result checks on every isolate
+├── app.py                            ← the Streamlit app
+│
+├── api/                              ← small Python API used by the web app
+│   ├── main.py                       ←   every endpoint; calls the analysis files above
+│   └── importer.py                   ←   CSV import: stage, check, apply, restore
+├── web/                              ← the web app (React + TypeScript), see web/README.md
+│
+├── verify_numbers.py                 ← independent check of the numbers against the raw files
+└── make_demo_batch.py                ← splits the real data for the import demo
 ```
 
-**How the pieces connect:** `preprocess.py` turns the raw CSVs into `processed/`. Every analysis file imports `cw_utils.py` and reads `processed/`. The app imports the analysis files and shows their results. Because all rules live in one place (`cw_utils.py` and `preprocess.py`), every view produces the same numbers.
+**How the pieces connect:** `preprocess.py` turns the raw CSVs into `data/processed/`. Every analysis file imports `cw_utils.py` and reads `data/processed/`. Both apps (Streamlit directly, the web app through `api/`) call the analysis files and show their results. Because all rules live in one place (`cw_utils.py` and `preprocess.py`), every view produces the same numbers.
 
 Each analysis file can also be run on its own, e.g. `python antibiogram.py`.
+
+---
+
+## Security and privacy
+
+- **No secrets.** The app uses no API keys, passwords or accounts, and none are stored in the code or the Git history. `.gitignore` also keeps `.env`, key files, the dataset and all generated data out of Git.
+- **Runs on your computer.** The API listens only on this computer (`127.0.0.1`), not on the network.
+- **The public link is view-only.** Through the shared link (Cloudflare tunnel) people can look, but importing or restoring data is refused. Data can only be changed from the app itself on the computer running it; requests from other web sites or tricked browsers are refused too (the app sends its own header, and host names are checked).
+- **Safe downloads.** Exported CSV files neutralise cells that a spreadsheet could run as a formula.
+- **Browser protections.** Every page is served with security headers (content security policy, no framing, no sniffing).
+- **Only synthetic data.** The dataset is invented. **Never put real patient data behind the public link.** Real use would need the hospital network, user login, HTTPS and audit logging.
 
 ---
 

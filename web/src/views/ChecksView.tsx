@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useApi } from '../api'
 import { DataTable } from '../components/DataTable'
 import { Status } from '../components/Status'
-import { date, dateRange, num, shortOrg } from '../format'
+import { csvCell, date, dateRange, num, shortOrg } from '../format'
 import { useMeta, useT } from '../state'
 import type { CheckCategory, ChecksResp } from '../types'
 
@@ -22,10 +22,9 @@ export function ChecksView() {
   const kind = (c: CheckCategory) => (c === 'confirm' ? 'muted' : 'critical') as 'muted' | 'critical'
 
   const exportCsv = () => {
-    const esc = (v: unknown) => { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s }
     const head = ['date', 'isolate_id', 'patient_id', 'ward', 'specimen', 'organism', 'category', 'check', 'antibiotic', 'result']
     const rows = data.flagged.map(f => [f.sample_date, f.isolate_id, f.patient_id, f.ward_code, f.specimen, f.organism, f.category,
-      t.checks.rules[f.rule] ?? f.rule, f.antibiotic_code, f.result ?? ''].map(esc).join(','))
+      t.checks.rules[f.rule] ?? f.rule, f.antibiotic_code, f.result ?? ''].map(csvCell).join(','))
     const url = URL.createObjectURL(new Blob([[head.join(','), ...rows].join('\n')], { type: 'text/csv' }))
     Object.assign(document.createElement('a'), { href: url, download: `result-checks-${data.end}.csv` }).click()
     URL.revokeObjectURL(url)

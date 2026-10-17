@@ -22,6 +22,22 @@ from api import importer
 
 app = FastAPI(title="CultureWatch API")
 
+# Browser security headers for every response. The strict content policy is skipped on the API docs pages,
+# which load their own scripts from a CDN.
+CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; "
+       "connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'")
+
+
+@app.middleware("http")
+async def security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    if not request.url.path.startswith(("/docs", "/redoc", "/openapi.json")):
+        response.headers.setdefault("Content-Security-Policy", CSP)
+    return response
+
 PHENOTYPES = ["esbl", "mrsa", "vre", "cpe"]
 PHENOTYPE_BASE = {  # organisms a phenotype % is calculated over (VRE/CPE are reported as case counts)
     "esbl": ["Escherichia coli", "Klebsiella pneumoniae"],
@@ -403,11 +419,20 @@ def ward_view(code: str, specimen: str | None = None, s: Snap = Depends(snap)):
 
 
 # ---------- CSV import (lab exports) ----------
+LOCAL = {"127.0.0.1", "::1", "localhost"}
+MAX_UPLOAD = 200 * 1024 * 1024  # bytes per uploaded file
+
+
 def local_only(request: Request):
-    """Changing data is only allowed on the computer running CultureWatch, never through the public demo link
-    (cloudflared forwards public visitors from localhost but adds a cf-connecting-ip header)."""
-    host = request.client.host if request.client else ""
-    if request.headers.get("cf-connecting-ip") or host not in ("127.0.0.1", "::1", "localhost"):
+    """Changing data is only allowed from the app itself, on the computer running CultureWatch:
+    - never through the public tunnel (cloudflared adds a cf-connecting-ip header to every public request);
+    - only from a loopback address, sent to a localhost host name (blocks DNS-rebinding web pages);
+    - only with the app's own X-CultureWatch header: other web sites cannot add it without a CORS preflight,
+      which this API never grants (blocks cross-site request forgery from any open browser tab)."""
+    client = request.client.host if request.client else ""
+    host = (request.headers.get("host") or "").rsplit(":", 1)[0].strip("[]")
+    if (request.headers.get("cf-connecting-ip") or client not in LOCAL or host not in LOCAL
+            or request.headers.get("x-culturewatch") != "1"):
         raise HTTPException(403, "Import is only available on the computer running CultureWatch.")
 
 
@@ -437,8 +462,11 @@ def import_template(table: str):
 @app.put("/api/import/staging/{table}", dependencies=[Depends(local_only)])
 async def import_stage(table: str, request: Request):
     """Upload one CSV file (the request body) as `table`."""
+    body = await request.body()
+    if len(body) > MAX_UPLOAD:
+        raise HTTPException(413, f"File too large (max {MAX_UPLOAD // 2**20} MB).")
     try:
-        return importer.stage(table, await request.body())
+        return importer.stage(table, body)
     except importer.ImportProblem as e:
         raise HTTPException(422, str(e))
 

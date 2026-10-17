@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useApi } from '../api'
 import { DataTable } from '../components/DataTable'
 import { Status } from '../components/Status'
-import { date, dateRange, PHENOTYPE_LABEL, shortOrg } from '../format'
+import { csvCell, date, dateRange, PHENOTYPE_LABEL, shortOrg } from '../format'
 import { useMeta, useT } from '../state'
 import type { Finding, FindingsResp, Phenotype } from '../types'
 
@@ -65,12 +65,11 @@ export function FindingsView() {
   }
 
   const exportCsv = () => {
-    const esc = (v: unknown) => { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s }
     const head = ['date', 'patient_id', 'sex', 'age', 'ward', 'specimen', 'type', 'organisms', 'carrier_status', 'previous_positive',
       'hospital_onset', 'home_area', 'other_wards_30d', 'infection_unit_notified', 'ward_notified', 'municipality_notified']
     const rows = f.map(r => [r.sample_date, r.patient_id, r.sex, r.age_years, r.ward_code, r.specimen, PHENOTYPE_LABEL[r.phenotype], r.organisms,
       r.status, r.prev_date ?? '', r.hospital_onset, r.home_area, r.recent_wards.join(' '),
-      notified[r.finding_id]?.iu ?? '', notified[r.finding_id]?.ward ?? '', notified[r.finding_id]?.muni ?? ''].map(esc).join(','))
+      notified[r.finding_id]?.iu ?? '', notified[r.finding_id]?.ward ?? '', notified[r.finding_id]?.muni ?? ''].map(csvCell).join(','))
     const url = URL.createObjectURL(new Blob([[head.join(','), ...rows].join('\n')], { type: 'text/csv' }))
     Object.assign(document.createElement('a'), { href: url, download: `line-list-${data.end}.csv` }).click()
     URL.revokeObjectURL(url)

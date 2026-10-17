@@ -1,7 +1,7 @@
 import { useApi } from '../api'
 import { FilterBar } from '../components/FilterBar'
 import { useTooltip } from '../components/Tooltip'
-import { num, pct } from '../format'
+import { csvCell, num, pct } from '../format'
 import { filterParams, useMeta, useT, type Filters } from '../state'
 import type { AbCell, AntibiogramResp } from '../types'
 
@@ -12,9 +12,8 @@ function band(c: AbCell | undefined): string {
 }
 
 function toCsv(d: AntibiogramResp, cell: (o: string, a: string) => AbCell | undefined): string {
-  const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s)
   const head = ['organism', ...d.antibiotics].join(',')
-  const rows = d.organisms.map(o => [o, ...d.antibiotics.map(a => cell(o, a)?.label ?? '')].map(esc).join(','))
+  const rows = d.organisms.map(o => [o, ...d.antibiotics.map(a => cell(o, a)?.label ?? '')].map(csvCell).join(','))
   return [head, ...rows].join('\n')
 }
 

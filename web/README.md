@@ -90,12 +90,18 @@ Open http://localhost:5173. To share it on phones, see *Share it on phones* in t
 
 ---
 
+## Security
+
+The web app needs no API keys or passwords. Through the public share link people can only look: importing or restoring data only works from the app on the computer running it. See *Security and privacy* in the [main README](../README.md#security-and-privacy).
+
+---
+
 ## Where things are
 
 ```
 web/
 ├── src/App.tsx          top bar, tabs, language, time machine
-├── src/views/           one file per tab (WardView, FindingsView, AlertsView, ...)
+├── src/views/           one file per tab (WardView, FindingsView, ChecksView, AlertsView, ImportView, ...)
 ├── src/components/      reusable parts: charts, tables, filters, QR dialog
 ├── src/strings.ts       every piece of text, in English and Finnish
 ├── src/format.ts        how numbers and dates are written in each language

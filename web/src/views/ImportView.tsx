@@ -23,7 +23,9 @@ function tableFor(fileName: string): string | null {
 }
 
 async function call<T>(method: string, url: string, body?: BodyInit): Promise<T> {
-  const r = await fetch(url, { method, body, headers: body ? { 'Content-Type': 'text/csv' } : undefined })
+  // X-CultureWatch: the API only accepts data changes carrying the app's own header (blocks cross-site requests)
+  const headers: Record<string, string> = { 'X-CultureWatch': '1', ...(body ? { 'Content-Type': 'text/csv' } : {}) }
+  const r = await fetch(url, { method, body, headers })
   const data = await r.json().catch(() => null)
   if (!r.ok) throw new Error(typeof data?.detail === 'string' ? data.detail : `${r.status} ${r.statusText}`)
   return data as T
