@@ -11,16 +11,54 @@ CultureWatch takes laboratory culture results and shows which antibiotics are li
 
 For computers that already have **conda**, **Node.js 22+** and **Git**. Otherwise follow the [full setup guide](#full-setup-guide-from-zero) below.
 
+**1. Get the code**
+
 ```bash
 git clone https://github.com/KalleArtturi/CultureWatch.git
 cd CultureWatch
-# put the organisers' dataset here: unzip synthetic_microbiology_dataset.zip into this folder
+```
 
+**2. Put the dataset in place.** The data is not in Git; it comes from the organisers as `synthetic_microbiology_dataset.zip`. Unzip it **inside the `CultureWatch` folder**:
+
+```bash
+unzip ~/Downloads/synthetic_microbiology_dataset.zip -d .     # Mac / Linux, if the zip is in Downloads
+```
+
+On Windows, right-click the zip → *Extract All…* and choose the `CultureWatch` folder. The zip already contains the `synthetic_microbiology_dataset` folder, so the result must look like this:
+
+```
+CultureWatch/
+├── synthetic_microbiology_dataset/
+│   ├── patients.csv
+│   ├── cultures.csv
+│   ├── isolates.csv
+│   ├── susceptibility.csv
+│   ├── antibiotics.csv
+│   └── wards.csv
+├── web/
+├── api/
+└── run_pipeline.py  …
+```
+
+Check: `ls synthetic_microbiology_dataset` (Windows: `dir synthetic_microbiology_dataset`) lists the six CSV files. If you see a second `synthetic_microbiology_dataset` folder inside the first, move the inner one up a level.
+
+**3. Python environment and data pipeline**
+
+```bash
 conda env create -f environment.yml        # once
 conda activate CultureWatch
 python run_pipeline.py                     # once, and again whenever the data changes
-cd web && npm install && npm run build && cd ..   # once, and again after changing web code
+```
 
+**4. Build the web app**
+
+```bash
+cd web && npm install && npm run build && cd ..   # once, and again after changing web code
+```
+
+**5. Start it**
+
+```bash
 python -m uvicorn api.main:app --port 8000
 ```
 
@@ -95,19 +133,35 @@ All remaining commands are run **from inside the `CultureWatch` folder**.
 
 ### Step 4: Put the dataset in place
 
-The raw data must be in a folder called `synthetic_microbiology_dataset` inside the project folder, containing these files:
+The dataset is not in Git. It comes from the organisers as `synthetic_microbiology_dataset.zip`, and it must be unzipped **inside the `CultureWatch` folder**:
+
+- **Mac / Linux** (zip in your Downloads folder, terminal inside `CultureWatch`):
+  ```bash
+  unzip ~/Downloads/synthetic_microbiology_dataset.zip -d .
+  ```
+- **Windows:** right-click the zip → *Extract All…* → choose the `CultureWatch` folder.
+- **Or by hand:** unzip it anywhere and move the `synthetic_microbiology_dataset` folder into `CultureWatch`.
+
+The zip already contains the `synthetic_microbiology_dataset` folder. The result must be:
 
 ```
-synthetic_microbiology_dataset/
-├── patients.csv
-├── cultures.csv
-├── isolates.csv
-├── susceptibility.csv
-├── antibiotics.csv
-└── wards.csv
+CultureWatch/
+├── synthetic_microbiology_dataset/
+│   ├── README.md          (the organisers' description of the data)
+│   ├── patients.csv
+│   ├── cultures.csv
+│   ├── isolates.csv
+│   ├── susceptibility.csv
+│   ├── antibiotics.csv
+│   └── wards.csv
+├── web/
+├── api/
+└── run_pipeline.py  …
 ```
 
-If the folder is missing, unzip `synthetic_microbiology_dataset.zip` (provided by the organizers) into the `CultureWatch` folder so the structure matches the above. The dataset is never put in Git.
+Check it: `ls synthetic_microbiology_dataset` (Windows: `dir synthetic_microbiology_dataset`) should list the six CSV files. If you see a second `synthetic_microbiology_dataset` folder inside the first, move the inner one up a level. The folder name must be exactly `synthetic_microbiology_dataset`.
+
+The app only reads these files; it never changes them. Imported data goes to `data/imports/` instead.
 
 ### Step 5: Create the Python environment
 
