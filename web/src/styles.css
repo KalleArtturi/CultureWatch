@@ -16,6 +16,9 @@
   --series-3: #1baf7a;
   --series-1-wash: rgba(42, 120, 214, 0.1);
   --accent: #004a8e; /* Tyks blue: buttons, tabs, links */
+  /* Categorical slots (validated order) for charts that tell many entities apart */
+  --cat-1: #2a78d6; --cat-2: #eb6834; --cat-3: #1baf7a; --cat-4: #eda100;
+  --cat-5: #e87ba4; --cat-6: #008300; --cat-7: #6250d6; --cat-8: #e34948;
   --accent-wash: rgba(0, 74, 142, 0.08);
   --de-emph: #c3c2b7;
   --good: #0ca30c;
@@ -46,6 +49,8 @@
     --series-3: #199e70;
     --series-1-wash: rgba(57, 135, 229, 0.14);
   --accent: #0064c2; /* Tyks lighter blue, readable on dark */
+  --cat-1: #3987e5; --cat-2: #d95926; --cat-3: #199e70; --cat-4: #c98500;
+  --cat-5: #d55181; --cat-6: #008300; --cat-7: #9085e9; --cat-8: #e66767;
   --accent-wash: rgba(0, 100, 194, 0.18);
     --de-emph: #4a4a46;
     --good-text: #0ca30c;
@@ -70,6 +75,8 @@
   --series-3: #199e70;
   --series-1-wash: rgba(57, 135, 229, 0.14);
   --accent: #0064c2; /* Tyks lighter blue, readable on dark */
+  --cat-1: #3987e5; --cat-2: #d95926; --cat-3: #199e70; --cat-4: #c98500;
+  --cat-5: #d55181; --cat-6: #008300; --cat-7: #9085e9; --cat-8: #e66767;
   --accent-wash: rgba(0, 100, 194, 0.18);
   --de-emph: #4a4a46;
   --good-text: #0ca30c;
@@ -358,3 +365,16 @@ details summary { cursor: pointer; color: var(--text-2); }
   .table-wrap { overflow: visible; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* Spread flow chart */
+.flow svg { display: block; overflow: visible; }
+.flow-head { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; fill: var(--muted); }
+.flow-ribbon { fill-opacity: 0.42; stroke: var(--surface); stroke-width: 1; transition: fill-opacity 120ms; cursor: default; }
+.flow-ribbon.on { fill-opacity: 0.8; }
+.flow-ribbon.off { fill-opacity: 0.07; }
+.flow-ribbon:focus-visible { outline: none; stroke: var(--focus); stroke-width: 2; }
+.flow-bar.to { fill: var(--text-2); }
+.flow-node { transition: opacity 120ms; }
+.flow-node.off { opacity: 0.3; }
+.flow-label { font-size: 12.5px; fill: var(--text); }
+.flow-count { font-weight: 650; fill: var(--text); }
