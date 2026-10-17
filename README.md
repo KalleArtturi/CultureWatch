@@ -28,8 +28,6 @@ Open **http://localhost:8000**. That's the whole app, in Finnish and English.
 
 **Try it in 30 seconds:** on the start page press **Replay a past outbreak**. The app opens the intensive care unit, plays the weeks before March 2026, and stops when the MRSA alert fires. Then look at **Infection control → Spread** and **Analysis → Antibiogram**.
 
-Prefer the team's Streamlit prototype? After the pipeline step: `streamlit run app.py` (opens http://localhost:8501).
-
 ---
 
 ## Full setup guide (from zero)
@@ -118,7 +116,7 @@ conda config --set channel_priority strict
 conda env create -f environment.yml
 ```
 
-This installs Python 3.11, pandas, numpy, scipy, matplotlib, JupyterLab, Streamlit, FastAPI and Uvicorn into an environment called `CultureWatch`. It takes a few minutes.
+This installs Python 3.11, pandas, numpy, scipy, matplotlib, JupyterLab, FastAPI and Uvicorn into an environment called `CultureWatch`. It takes a few minutes.
 
 Then activate it:
 
@@ -181,16 +179,6 @@ Open **http://localhost:8000**. When the terminal shows `Application startup com
 
 That's it. 🎉
 
-### Optional: the Streamlit app
-
-The team's analysis prototype runs from the same environment:
-
-```bash
-streamlit run app.py
-```
-
-It opens at **http://localhost:8501**. Press `Ctrl+C` to stop it; click **Rerun** (or press `R`) after editing code.
-
 ---
 
 ## Everyday use
@@ -248,10 +236,7 @@ Open the printed link on any device. It works only while the app and the tunnel 
 
 ## What you get
 
-Two ways to look at the same numbers:
-
-- **The web app** (`web/`, Finnish and English), built around the people who use it: ward staff, the infection unit and lab scientists. Every feature is listed below.
-- **The Streamlit app** (`app.py`), the team's analysis prototype with six views (table further down).
+**A web app** (`web/`, Finnish and English) built around the people who use it: ward staff, the infection unit and lab scientists. Every feature is listed below.
 
 ### Web app: every feature in plain words
 
@@ -281,19 +266,6 @@ The **Share / Jaa** QR code is built in but hidden for now (`SHOW_SHARE` in `web
 
 How to run it: see [Quick start](#quick-start) above. A plain-language guide to the web app is in [web/README.md](web/README.md).
 
-### Streamlit app: six views
-
-| View | What it answers |
-|---|---|
-| **Overview** | Headline numbers: isolates, ESBL %, MRSA %, VRE/CPE cases, biggest changes vs last year |
-| **Antibiogram** | How often each bacterium is resistant to each antibiotic (colour-coded table) |
-| **Treatment Guide** | Which antibiotic is most likely to work for an infection scenario, e.g. "cystitis in a woman" |
-| **Hospital & Wards** | Is resistance higher in hospital than in the community? Which wards are hotspots? |
-| **Trends & Alerts** | Is resistance rising over time? Are there unusual clusters of MRSA or ESBL on a ward? |
-| **Methods** | The rules and definitions behind every number |
-
-All views share a filter bar: period, specimen (urine/blood/wound), setting, ward, sex and age group.
-
 ---
 
 ## Project structure
@@ -317,7 +289,6 @@ CultureWatch/
 ├── treatment_guide.py                ← step 3: antibiotic coverage per infection scenario
 ├── hospital_trends.py                ← step 4: hospital vs community, wards, trends, alerts, carriers, expiry dates
 ├── result_checks.py                  ← EUCAST-style result checks on every isolate
-├── app.py                            ← the Streamlit app
 │
 ├── api/                              ← small Python API used by the web app
 │   ├── main.py                       ←   every endpoint; calls the analysis files above
@@ -328,7 +299,7 @@ CultureWatch/
 └── make_demo_batch.py                ← splits the real data for the import demo
 ```
 
-**How the pieces connect:** `preprocess.py` turns the raw CSVs into `data/processed/`. Every analysis file imports `cw_utils.py` and reads `data/processed/`. Both apps (Streamlit directly, the web app through `api/`) call the analysis files and show their results. Because all rules live in one place (`cw_utils.py` and `preprocess.py`), every view produces the same numbers.
+**How the pieces connect:** `preprocess.py` turns the raw CSVs into `data/processed/`. Every analysis file imports `cw_utils.py` and reads `data/processed/`. The web app reaches them through `api/` and shows their results. Because all rules live in one place (`cw_utils.py` and `preprocess.py`), every view produces the same numbers.
 
 Each analysis file can also be run on its own, e.g. `python antibiogram.py`.
 
@@ -383,14 +354,8 @@ The raw data failed a quality check. The message lists which checks failed. Fix 
 **`CondaValueError: prefix already exists`** (during Step 5)
 The environment already exists. Update it instead: `conda env update -f environment.yml --prune`.
 
-**Streamlit error about `width="stretch"`**
-Your Streamlit is too old: `conda update streamlit`.
-
-**Port 8501 already in use**
-Another app is running. Stop it with `Ctrl+C` in its terminal, or start on another port: `streamlit run app.py --server.port 8502`.
-
 **Code changes don't show up**
-In the app, click **Rerun**. In JupyterLab, restart the kernel (Kernel → Restart Kernel), because imported files are only read once per session.
+Restart the API (`Ctrl+C`, then start it again) or use `--reload` (see *Working on the web app*); rebuild the web app after changing `web/`. In JupyterLab, restart the kernel (Kernel → Restart Kernel), because imported files are only read once per session.
 
 **`No module named 'pandas'` when starting the API**
 You ran plain `uvicorn`, which used another Python installation. Run `python -m uvicorn api.main:app --port 8000` with the environment active.

@@ -9,6 +9,5 @@ dependencies:
   - matplotlib
   - jupyterlab
   - ipykernel
-  - streamlit
   - fastapi
   - uvicorn

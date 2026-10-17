@@ -1,6 +1,6 @@
 """CultureWatch JSON API for the TypeScript UI (web/).
 Thin layer on purpose: every number comes from cw_utils / antibiogram / treatment_guide / hospital_trends,
-so the web UI and the Streamlit app always agree.
+so every view shows the same numbers.
 Run from the CultureWatch folder:  uvicorn api.main:app --reload --port 8000"""
 import json
 from datetime import date
@@ -288,7 +288,7 @@ def overview(f: dict = Depends(filter_params), s: Snap = Depends(snap)):
                 vre_cases=int(f_iso.vre.sum()), cpe_cases=int(f_iso.cpe.sum()))
     mix = f_iso.organism.value_counts().rename_axis("organism").reset_index(name="n")
 
-    # Biggest changes: same pairs and rules as the Streamlit overview, previous vs latest surveillance year
+    # Biggest changes: same pairs and rules as hospital_trends.py, previous vs latest surveillance year
     by_year = cw.resistance_table(cw.apply_filters(ast, **without(f, "period", "date_from", "date_to")),
                                   by=["period", "organism", "antibiotic_code"])
     years = sorted(by_year.period.unique())
