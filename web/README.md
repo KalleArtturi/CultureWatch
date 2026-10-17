@@ -10,24 +10,30 @@ Some bacteria learn to survive antibiotics. When that happens, the usual medicin
 
 ## What you can do
 
+The tabs are grouped by who uses them. Infection control and Analysis have smaller sub-tabs underneath.
+
 | Tab | What it tells you |
 |---|---|
 | **My ward** | Opens on your own ward. A short summary in plain words, then: anything unusual **in the last 4 weeks**? Is resistance **worse than last year** or worse than the rest of the hospital? |
-| **Findings** | The lab's daily to-do list: every new resistant bacterium found, whether the patient is a **new or known carrier**, and checkboxes for who has been told (infection unit, ward, home municipality). |
-| **Result checks** | The checks a lab scientist does before releasing results, run on every isolate: results that contradict each other (e.g. marked MRSA but the cefoxitin test says susceptible), results that are biologically impossible (susceptible to a drug the species naturally resists), and unusual resistance that needs a confirmation test. Based on EUCAST rules. New CSV imports are checked the same way. |
-| **Alerts** | Every ward at once: which wards have more cases than normal right now, and every alert in the past. |
-| **Hospital** | The big picture: totals, ward "hotspots", hospital vs outpatient resistance. |
-| **Antibiogram** | A colour table: for each bacterium and each antibiotic, how often the antibiotic **fails** (green = rarely, red = often). |
-| **Treatment guide** | Pick an infection type (e.g. bladder infection in a woman): which antibiotic would have worked for most past patients. |
-| **Trends** | Is resistance rising over time? And the **guideline expiry date**: when a common antibiotic crosses the 20% line where doctors stop starting it before the test result. |
-| **Import** | Upload new lab results as CSV files (e.g. this week's export from the lab system). The files are checked with the same rules as the data pipeline; nothing changes unless every check passes. You can always go back to the original data. |
-| **Methods** | Every rule and calculation, written out. |
+| **Infection control → Findings** | The infection unit's to-do list: every new resistant bacterium found, whether the patient is a **new or known carrier**, and checkboxes for who has been told (infection unit, ward, home municipality). Search by patient, ward or organism. |
+| **Infection control → Alerts** | Every ward at once: which wards have more cases than normal right now, and every alert in the past. |
+| **Infection control → Spread** | Where new carriers had been in the 30 days before their finding, as a flow chart: wards on the left, the ward where they were found on the right, wider band = more patients. Each ward has its own colour; point at a ward or band to highlight it. |
+| **Infection control → Weekly summary** | The last 7 days on one printable page: wards on alert, new resistant findings, results to check. |
+| **Lab → Result checks** | The checks a lab scientist does before releasing results, run on every isolate: results that contradict each other (e.g. marked MRSA but the cefoxitin test says susceptible), results that are biologically impossible (susceptible to a drug the species naturally resists), and unusual resistance that needs a confirmation test. Based on EUCAST rules. Short labels, full text on hover. |
+| **Analysis → Hospital** | The big picture: totals, ward "hotspots", resistance by the patient's home area, hospital vs outpatient resistance. |
+| **Analysis → Antibiogram** | A colour table: for each bacterium and each antibiotic, how often the antibiotic **fails** (green = rarely, red = often). Print it as a one-page PDF. |
+| **Analysis → Treatment guide** | Pick an infection type (e.g. bladder infection in a woman): which antibiotic would have worked for most past patients. |
+| **Analysis → Trends** | Is resistance rising over time? The chart is first; below it the **guideline expiry date**: when a common antibiotic crosses the 20% line where doctors stop starting it before the test result. |
+| **Import** (top right) | Upload new lab results as CSV files (e.g. this week's export from the lab system). The files are checked with the same rules as the data pipeline; nothing changes unless every check passes. You can always go back to the original data. |
+| **Methods** (top right) | Every rule and calculation, written out, and how a resistant finding is handled. |
 
 **Extras in the top bar**
 
-- **Time machine:** rewind to any week and press Play. The whole app shows what it *would have shown* on that day, so you can watch an alert fire (try the ICU in March 2026).
+- **Historical replay:** rewind to any week and press Play. The whole app shows what it *would have shown* on that day. The **Replay a past outbreak** button on the start page opens the ICU and plays until its MRSA alert fires (March 2026).
 - **FI / EN:** the whole app works in Finnish and English.
-- **Share / Jaa:** shows a QR code so anyone can open the same page on their phone.
+- **Logo:** back to the start page.
+
+**Built for real volumes:** every table shows 25 rows per page, and sorting and search work across all rows. Extra filters (setting, ward, sex, age) sit behind **More filters**. The layout works on phones.
 
 ---
 
@@ -78,15 +84,15 @@ You need the Python environment from the main [README](../README.md) and [Node.j
 
 ```bash
 python run_pipeline.py                     # once: prepares the data
-uvicorn api.main:app --port 8000           # terminal 1: the API
+python -m uvicorn api.main:app --port 8000 # terminal 1: the API
 cd web && npm install && npm run dev       # terminal 2: the web app
 ```
 
-Open http://localhost:5173. To share it on phones, see *Share it on phones* in the main README.
+Open http://localhost:5173. To share it on phones, see *Share it on phones* in the main README. Before a demo, press **Replay a past outbreak** once so the replayed weeks are remembered and play fast.
 
 **Try the import (real data only):** `python make_demo_batch.py` cuts the real dataset at a date: `data/demo_batch/base/` holds everything before 23 Feb 2026 and `data/demo_batch/batch/` the real two weeks up to 8 Mar 2026, when the ICU MRSA cluster appears. On the **Import** tab, first *Replace all data* with the four `base` files, then *Add new results* with the three `batch` files: the ICU alert fires, exactly as in the real data. *Restore original dataset* brings back the full data. Import only works on the computer running the app, never through the public link.
 
-**Check the numbers:** with the API running, `python verify_numbers.py` recomputes the headline numbers straight from the raw CSV files with its own, separate code and compares them with what the app shows (prints OK/FAIL per number).
+**Check the numbers:** with the API running, `python verify_numbers.py` recomputes the headline numbers straight from the raw CSV files with its own, separate code and compares them with what the app shows (prints OK/FAIL per number; 31/31 today, including spread, home areas and the weekly summary).
 
 ---
 
@@ -100,9 +106,9 @@ The web app needs no API keys or passwords. Through the public share link people
 
 ```
 web/
-├── src/App.tsx          top bar, tabs, language, time machine
-├── src/views/           one file per tab (WardView, FindingsView, ChecksView, AlertsView, ImportView, ...)
-├── src/components/      reusable parts: charts, tables, filters, QR dialog
+├── src/App.tsx          top bar, grouped tabs, language, historical replay
+├── src/views/           one file per tab (WardView, FindingsView, SpreadView, WeeklyView, ChecksView, ...)
+├── src/components/      reusable parts: charts, paged tables, filters, replay bar, QR dialog
 ├── src/strings.ts       every piece of text, in English and Finnish
 ├── src/format.ts        how numbers and dates are written in each language
 └── src/api.ts           how the app asks the API for data

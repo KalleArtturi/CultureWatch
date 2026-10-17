@@ -16,22 +16,29 @@ Two ways to look at the same numbers:
 
 ### Web app: every feature in plain words
 
-| Feature | What it does for you |
-|---|---|
-| **My ward** | Opens on your own ward. A short summary in everyday words, then: anything unusual **in the last 4 weeks** (alerts), and is resistance **worse than last year or than the rest of the hospital** (signals). |
-| **Findings** | The infection unit's daily to-do list: every new resistant bacterium (MRSA, ESBL, VRE, CPE), whether the patient is a **new or known carrier**, where the patient was before, and tick-boxes for who has been told. Export as a line list. |
-| **Result checks** | The checks a lab scientist does before releasing results, run on every isolate (EUCAST rules): results that contradict each other, results that are biologically impossible, and unusual resistance that needs a confirmation test. |
-| **Alerts** | All wards at once: which have more cases than normal right now, plus every past alert. |
-| **Hospital** | The big picture: totals, ward hotspots, hospital vs outpatient resistance. |
-| **Antibiogram** | Colour table: how often each antibiotic fails against each bacterium. Downloadable. |
-| **Treatment guide** | For an infection type, which antibiotic would have worked for most past patients. |
-| **Trends** | Is resistance rising? Plus the **guideline expiry date**: when a common antibiotic crosses the 20% line where doctors stop starting it before the lab result. |
-| **Import** | Upload new lab results as CSV files. Every file is checked first (the pipeline's 16 checks and the result checks); nothing changes unless all checks pass, and the original data can always be restored. |
-| **Methods** | Every rule and calculation, written out. |
-| **Time machine** | Rewind to any week and press Play: the whole app shows what it would have shown that day, so you can watch a real alert fire. |
-| **FI / EN** | The whole app in Finnish and English, with Finnish number and date formats. |
-| **Share / Jaa** | A QR code so anyone can open the same page on their phone. |
-| **Verified numbers** | `verify_numbers.py` recomputes the headline numbers from the raw files with separate code and compares them with the app (22/22 match). |
+The tabs are grouped by who uses them: **My ward** (ward staff), **Infection control** (the infection unit), **Lab** (lab scientists) and **Analysis** (everyone writing guidelines). **Import** and **Methods** sit on the right of the tab bar.
+
+| Where | Feature | What it does for you |
+|---|---|---|
+| **My ward** | Own-ward view | Opens on your own ward. A short summary in everyday words, then: anything unusual **in the last 4 weeks** (alerts), and is resistance **worse than last year or than the rest of the hospital** (signals). |
+| **Infection control** | Findings | The infection unit's daily to-do list: every new resistant bacterium (MRSA, ESBL, VRE, CPE), whether the patient is a **new or known carrier**, where the patient was before, and tick-boxes for who has been told. Searchable, export as a line list. |
+| | Alerts | All wards at once: which have more cases than normal right now, plus every past alert. |
+| | Spread | **Where new carriers had been in the 30 days before their finding**, as a flow chart from ward to ward. Each ward has its own colour; hover a ward or band to highlight its flows. A lead for infection control, not proof of transmission. |
+| | Weekly summary | One printable page for the infection unit: wards on alert, new resistant findings and results to check from the last 7 days. |
+| **Lab** | Result checks | The checks a lab scientist does before releasing results, run on every isolate (EUCAST rules): results that contradict each other, results that are biologically impossible, and unusual resistance that needs a confirmation test. Searchable. |
+| **Analysis** | Hospital | The big picture: totals, ward hotspots, resistance **by the patient's home area**, hospital vs outpatient resistance. |
+| | Antibiogram | Colour table: how often each antibiotic fails against each bacterium. Download as CSV or **print / save as PDF** as a one-page cumulative antibiogram. |
+| | Treatment guide | For an infection type, which antibiotic would have worked for most past patients. |
+| | Trends | Is resistance rising? The chart comes first; below it the **guideline expiry date**: when a common antibiotic crosses the 20% line where doctors stop starting it before the lab result. |
+| Top right | Import | Upload new lab results as CSV files. Every file is checked first (the pipeline's 16 checks and the result checks); nothing changes unless all checks pass, and the original data can always be restored. |
+| | Methods | Every rule and calculation, written out, plus how a resistant finding is handled. |
+| Top bar | **Historical replay** | Rewind to any week and press Play: the whole app shows what it would have shown that day. **Replay a past outbreak** on the start page opens the clearest outbreak in the data (ICU, MRSA, March 2026) and plays until the alert fires. |
+| | FI / EN | The whole app in Finnish and English, with Finnish number and date formats. |
+| | Logo | Back to the start page. |
+| Everywhere | Tables for real volumes | Every table shows 25 rows per page; sorting and search work across all rows. Filters beyond time and specimen sit behind **More filters**. Works on phones. |
+| | Verified numbers | `verify_numbers.py` recomputes the numbers from the raw files with separate code and compares them with the app (31/31 match), including spread, home areas and the weekly summary. |
+
+The **Share / Jaa** QR code is built in but hidden for now (`SHOW_SHARE` in `web/src/App.tsx`).
 
 How to run it: see [Web UI (TypeScript)](#web-ui-typescript) below. A plain-language guide to the web app is in [web/README.md](web/README.md).
 
@@ -71,7 +78,7 @@ Needs [Node.js](https://nodejs.org) 20+ in addition to the conda environment. Af
 
 ```bash
 # terminal 1: the API (from the CultureWatch folder, environment active)
-uvicorn api.main:app --reload --port 8000
+python -m uvicorn api.main:app --reload --port 8000
 
 # terminal 2: the web UI
 cd web
@@ -81,17 +88,21 @@ npm run dev
 
 Open http://localhost:5173. The API's own docs are at http://localhost:8000/docs. The UI is in Finnish and English (FI / EN in the top bar).
 
+`python -m uvicorn` makes sure the environment's own Python runs the API. A plain `uvicorn` can pick up another Python installation on the computer and fail with "No module named 'pandas'".
+
+**Before a demo:** press **Replay a past outbreak** once. Each replayed week is calculated the first time and remembered after that, so the second run is fast.
+
 #### Share it on phones (demo / jury)
 
 The API also serves the built UI, so one address is enough:
 
 ```bash
 cd web && npm run build && cd ..
-uvicorn api.main:app --port 8000                    # API + built UI on http://localhost:8000
+python -m uvicorn api.main:app --port 8000          # API + built UI on http://localhost:8000
 cloudflared tunnel --url http://localhost:8000       # prints a public https://….trycloudflare.com link
 ```
 
-Open the printed link on the laptop and press **Share / Jaa** to show a QR code that opens the same page on any phone. The link works only while both commands run, and changes every time the tunnel restarts. (Install cloudflared: `winget install Cloudflare.cloudflared` or `brew install cloudflared`.)
+Open the printed link on any device. (The **Share / Jaa** QR button is hidden for now; set `SHOW_SHARE = true` in `web/src/App.tsx` to bring it back.) The link works only while both commands run, and changes every time the tunnel restarts. (Install cloudflared: `winget install Cloudflare.cloudflared` or `brew install cloudflared`.)
 
 #### Check the numbers
 
