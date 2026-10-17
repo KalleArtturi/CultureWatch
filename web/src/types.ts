@@ -137,6 +137,8 @@ export interface WardProfileRow {
 
 export interface TrendPoint {
   quarter: string
+  /** position on the shared quarter axis */
+  x?: number
   n_tested: number
   n_resistant: number
   pct_resistant: number
@@ -144,11 +146,43 @@ export interface TrendPoint {
   ci_high: number
 }
 
+export type ExpiryStatus = 'crossing' | 'crossed' | 'rising' | 'above' | 'improving' | 'stable'
+
+export interface Projection {
+  a: number
+  b: number
+  x_last: number
+  pct_now: number
+  slope_pp_per_year: number
+  p_value: number
+  status: ExpiryStatus
+  cross_x: number | null
+  cross_date: string | null
+  months_left: number | null
+}
+
 export interface TrendResp {
   points: TrendPoint[]
   z: number
   p_value: number
   direction: 'increasing' | 'decreasing'
+  quarters: string[]
+  limit: number
+  projection: Projection | null
+}
+
+export interface ExpiryPair extends Projection {
+  organism: string
+  antibiotic_code: string
+  n_tested: number
+  tier: number
+}
+
+export interface ExpiryResp {
+  limit: number
+  quarters: string[]
+  as_of: string
+  pairs: ExpiryPair[]
 }
 
 export interface TrendSummaryRow {

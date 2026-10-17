@@ -1,4 +1,5 @@
 import { date, weekStart } from '../format'
+import { useT } from '../state'
 import { useTooltip } from './Tooltip'
 import { useWidth } from './useWidth'
 
@@ -24,6 +25,7 @@ export function WeeklyColumns({ values, weeks, emphasizeLast = 4, usualPerWeek, 
   label: string
 }) {
   const [ref, width] = useWidth<HTMLDivElement>(compact ? 200 : 700)
+  const { t } = useT()
   const tip = useTooltip()
   const m = compact ? { t: 4, r: 0, b: 2, l: 0 } : { t: 10, r: 8, b: 26, l: 30 }
   const iw = Math.max(width - m.l - m.r, 10)
@@ -59,7 +61,7 @@ export function WeeklyColumns({ values, weeks, emphasizeLast = 4, usualPerWeek, 
         {usualPerWeek !== undefined && usualPerWeek > 0 && (
           <g>
             <line x1={m.l} x2={m.l + iw} y1={y(usualPerWeek)} y2={y(usualPerWeek)} stroke="var(--text-2)" strokeWidth={1} strokeDasharray="3 3" />
-            {!compact && <text x={m.l + 4} y={y(usualPerWeek) - 4} style={{ fill: 'var(--text-2)' }}>usual</text>}
+            {!compact && <text x={m.l + 4} y={y(usualPerWeek) - 4} style={{ fill: 'var(--text-2)' }}>{t.charts.usual}</text>}
           </g>
         )}
         {alertWeeks && weeks.map((w, i) => alertWeeks.has(w) ? (
@@ -79,9 +81,9 @@ export function WeeklyColumns({ values, weeks, emphasizeLast = 4, usualPerWeek, 
             fill="transparent"
             onPointerMove={e => tip.show(e, (
               <>
-                <div className="tt-title">Week of {date(weekStart(weeks[i]))}</div>
-                <div className="tt-value">{v} {v === 1 ? 'case' : 'cases'}</div>
-                {alertWeeks?.has(weeks[i]) && <div className="error">Alert raised this week</div>}
+                <div className="tt-title">{t.charts.weekOf(date(weekStart(weeks[i])))}</div>
+                <div className="tt-value">{v} {t.common.caseWord(v)}</div>
+                {alertWeeks?.has(weeks[i]) && <div className="error">{t.charts.alertWeek}</div>}
               </>
             ))}
             onPointerLeave={tip.hide}

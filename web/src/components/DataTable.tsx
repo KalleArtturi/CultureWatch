@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
+import { useT } from '../state'
 
 export interface Column<T> {
   key: string
@@ -10,7 +11,7 @@ export interface Column<T> {
   title?: string
 }
 
-export function DataTable<T>({ rows, columns, rowKey, initialSort, highlight, empty = 'No rows.' }: {
+export function DataTable<T>({ rows, columns, rowKey, initialSort, highlight, empty }: {
   rows: T[]
   columns: Column<T>[]
   rowKey: (row: T) => string
@@ -18,6 +19,7 @@ export function DataTable<T>({ rows, columns, rowKey, initialSort, highlight, em
   highlight?: (row: T) => boolean
   empty?: string
 }) {
+  const { t } = useT()
   const [sort, setSort] = useState(initialSort)
 
   const sorted = useMemo(() => {
@@ -33,7 +35,7 @@ export function DataTable<T>({ rows, columns, rowKey, initialSort, highlight, em
     })
   }, [rows, columns, sort])
 
-  if (!rows.length) return <p className="muted">{empty}</p>
+  if (!rows.length) return <p className="muted">{empty ?? t.common.noRows}</p>
 
   return (
     <div className="table-wrap">

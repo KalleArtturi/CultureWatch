@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useApi } from '../api'
 import { date, PHENOTYPE_LABEL } from '../format'
-import { useMeta } from '../state'
+import { useMeta, useT } from '../state'
 import type { TimelineAlert } from '../types'
 import { Status } from './Status'
 
@@ -19,6 +19,7 @@ export function TimeMachine({ asOf, setAsOf, myWard, onExit }: {
   onExit: () => void
 }) {
   const { meta, wardName } = useMeta()
+  const { t } = useT()
   const weeks = meta.replay_weeks
   const timeline = useApi<TimelineAlert[]>('/api/alert-timeline', {}, { live: true })
   const [playing, setPlaying] = useState(false)
@@ -61,20 +62,20 @@ export function TimeMachine({ asOf, setAsOf, myWard, onExit }: {
   const pos = (week: string) => `${(weeks.indexOf(week) / Math.max(weeks.length - 1, 1)) * 100}%`
 
   return (
-    <div className="replay-bar" role="region" aria-label="Time machine">
+    <div className="replay-bar" role="region" aria-label={t.machine.region}>
       <div className="replay-when">
-        <span className="replay-kicker">Time machine · viewing the app as it was on</span>
+        <span className="replay-kicker">{t.machine.kicker}</span>
         <span className="replay-date">{date(asOf)}</span>
       </div>
 
       <div className="replay-controls">
-        <button type="button" className="btn" onClick={() => go(idx - 1)} disabled={idx === 0} aria-label="Previous week">◀</button>
+        <button type="button" className="btn" onClick={() => go(idx - 1)} disabled={idx === 0} aria-label={t.machine.prev}>◀</button>
         <button type="button" className="btn primary" onClick={() => setPlaying(p => !p)} disabled={idx >= weeks.length - 1}>
-          {playing ? 'Pause' : 'Play'}
+          {playing ? t.machine.pause : t.machine.play}
         </button>
-        <button type="button" className="btn" onClick={() => go(idx + 1)} disabled={idx >= weeks.length - 1} aria-label="Next week">▶</button>
+        <button type="button" className="btn" onClick={() => go(idx + 1)} disabled={idx >= weeks.length - 1} aria-label={t.machine.next}>▶</button>
         <button type="button" className="btn" onClick={() => nextAlert && go(weeks.indexOf(nextAlert.week_end))} disabled={!nextAlert}>
-          Next {myWard ? 'ward ' : ''}alert
+          {myWard ? t.machine.nextWardAlert : t.machine.nextAlert}
         </button>
       </div>
 
@@ -85,7 +86,7 @@ export function TimeMachine({ asOf, setAsOf, myWard, onExit }: {
           max={weeks.length - 1}
           value={idx}
           onChange={e => go(Number(e.target.value))}
-          aria-label="Week"
+          aria-label={t.machine.week}
           aria-valuetext={date(asOf)}
         />
         <div className="replay-marks">
@@ -95,15 +96,15 @@ export function TimeMachine({ asOf, setAsOf, myWard, onExit }: {
               type="button"
               className={`replay-mark${relevant(a) ? ' mine' : ''}`}
               style={{ left: pos(a.week_end) }}
-              title={`${date(a.week_end)}: ${PHENOTYPE_LABEL[a.phenotype]} alert on ${wardName(a.ward_code)}`}
-              aria-label={`Jump to ${PHENOTYPE_LABEL[a.phenotype]} alert on ${wardName(a.ward_code)}, ${date(a.week_end)}`}
+              title={`${date(a.week_end)}: ${t.machine.alertOn(PHENOTYPE_LABEL[a.phenotype], wardName(a.ward_code))}`}
+              aria-label={t.machine.jump(PHENOTYPE_LABEL[a.phenotype], wardName(a.ward_code), date(a.week_end))}
               onClick={() => go(weeks.indexOf(a.week_end))}
             />
           ))}
         </div>
         <div className="replay-ends small muted">
           <span>{date(weeks[0])}</span>
-          <span>{myWard ? `red marks = alerts on ${wardName(myWard)}` : 'marks = past alerts'}</span>
+          <span>{myWard ? t.machine.marksMine(wardName(myWard)) : t.machine.marksAll}</span>
           <span>{date(weeks[weeks.length - 1])}</span>
         </div>
       </div>
@@ -111,12 +112,12 @@ export function TimeMachine({ asOf, setAsOf, myWard, onExit }: {
       <div className="replay-now" aria-live="polite">
         {here.length ? (
           <Status kind="critical">
-            {here.map(a => `${PHENOTYPE_LABEL[a.phenotype]} alert on ${wardName(a.ward_code)}`).join(' · ')}
+            {here.map(a => t.machine.alertOn(PHENOTYPE_LABEL[a.phenotype], wardName(a.ward_code))).join(' · ')}
           </Status>
-        ) : <span className="small muted">No new alert this week</span>}
+        ) : <span className="small muted">{t.machine.noneThisWeek}</span>}
       </div>
 
-      <button type="button" className="btn" onClick={onExit}>Back to today</button>
+      <button type="button" className="btn" onClick={onExit}>{t.machine.back}</button>
     </div>
   )
 }

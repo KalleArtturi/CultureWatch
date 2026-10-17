@@ -110,6 +110,65 @@ def cochran_armitage(r, n):
     return z, 2 * stats.norm.sf(abs(z))
 
 
+EMPIRICAL_LIMIT = 0.20  # common rule: avoid blind (empirical) use once resistance passes 20%
+
+
+def quarter_mid(q):
+    p = pd.Period(q, freq="Q")
+    return p.start_time + (p.end_time - p.start_time) / 2
+
+
+def project_trend(t, quarters, limit=EMPIRICAL_LIMIT, end=None, horizon_years=5):
+    """Fit a weighted straight line to quarterly resistance (t from trend_table) and say when it crosses
+    `limit`. x = position in `quarters` (all quarters in the data), each quarter weighted by its size.
+    Closed-form least squares on purpose (no BLAS dependency). A date is only projected for a
+    significant trend (Cochran-Armitage p < 0.05)."""
+    x = np.array([quarters.index(q) for q in t.quarter], float)
+    y, w = t.pct_resistant.values.astype(float), t.n_tested.values.astype(float)
+    xm, ym = np.average(x, weights=w), np.average(y, weights=w)
+    b = np.sum(w * (x - xm) * (y - ym)) / np.sum(w * (x - xm) ** 2) if len(x) > 1 else 0.0
+    a = ym - b * xm
+    _, p = cochran_armitage(t.n_resistant.values, t.n_tested.values)
+    x_last = len(quarters) - 1
+    now = a + b * x_last
+    end = pd.Timestamp(end) if end is not None else quarter_mid(quarters[-1])
+    out = dict(a=float(a), b=float(b), x_last=x_last, pct_now=float(np.clip(now, 0, 1)),
+               slope_pp_per_year=float(b * 4 * 100), p_value=float(p),
+               status="stable" if now < limit else "above", cross_x=None, cross_date=None, months_left=None)
+    if p < 0.05 and b > 0:
+        cross_x = (limit - a) / b
+        when = quarter_mid(quarters[-1]) + pd.Timedelta(days=91.3 * (cross_x - x_last))
+        if now >= limit:
+            out.update(status="crossed", cross_x=float(cross_x) if cross_x >= 0 else None,
+                       cross_date=when.date().isoformat() if cross_x >= 0 else None)
+        elif (when - end).days <= 365.25 * horizon_years:
+            out.update(status="crossing", cross_x=float(cross_x), cross_date=when.date().isoformat(),
+                       months_left=round(max((when - end).days, 0) / 30.44, 1))
+        else:
+            out["status"] = "rising"
+    elif p < 0.05 and b < 0:
+        out["status"] = "improving"
+    return out
+
+
+def expiry_watch(ast, limit=EMPIRICAL_LIMIT, end=None, **filters):
+    """'Guideline expiry date' for every organism-antibiotic pair with enough data: is resistance rising
+    towards the empirical-use limit, and when does the trend cross it?"""
+    d = add_quarter(cw.apply_filters(ast, **filters))
+    d = d[~d.intrinsic]
+    quarters = sorted(d.quarter.unique())
+    rows = []
+    for (org, ab), g in d.groupby(["organism", "antibiotic_code"]):
+        t = cw.resistance_table(g, by=["quarter"], min_n=1).sort_values("quarter")
+        if len(t) < 4 or t.n_tested.sum() < 4 * cw.MIN_ISOLATES:
+            continue  # too little data for a trustworthy line
+        rows.append(dict(organism=org, antibiotic_code=ab, n_tested=int(t.n_tested.sum()),
+                         **project_trend(t, quarters, limit, end)))
+    cols = ["organism", "antibiotic_code", "n_tested", "a", "b", "x_last", "pct_now", "slope_pp_per_year",
+            "p_value", "status", "cross_x", "cross_date", "months_left"]
+    return pd.DataFrame(rows, columns=cols), quarters
+
+
 def trend_summary(ast, pairs=KEY_PAIRS, **filters):
     rows = []
     for org, ab in pairs:

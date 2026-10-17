@@ -1,5 +1,34 @@
 import { createContext, useContext } from 'react'
+import { STRINGS, type Lang, type Strings } from './strings'
 import type { Meta } from './types'
+
+// ---------- Language ----------
+export const LangContext = createContext<Lang>('en')
+
+export function useT(): { t: Strings; lang: Lang } {
+  const lang = useContext(LangContext)
+  return { t: STRINGS[lang], lang }
+}
+
+const LANG_KEY = 'culturewatch.lang'
+
+export function loadLang(): Lang {
+  try {
+    const v = localStorage.getItem(LANG_KEY)
+    if (v === 'en' || v === 'fi') return v
+  } catch {
+    /* storage unavailable: fall back to the browser language */
+  }
+  return navigator.language?.toLowerCase().startsWith('fi') ? 'fi' : 'en'
+}
+
+export function saveLang(lang: Lang): void {
+  try {
+    localStorage.setItem(LANG_KEY, lang)
+  } catch {
+    /* not remembered in a private window */
+  }
+}
 
 // ---------- Meta (loaded once; labels and filter options) ----------
 export interface MetaHelpers {
@@ -7,18 +36,25 @@ export interface MetaHelpers {
   abName: (code: string) => string
   abLabel: (code: string) => string
   wardName: (code: string) => string
+  specimenName: (s: string) => string
+  scenarioName: (s: string) => string
+  tierName: (tier: number) => string
 }
 
 export const MetaContext = createContext<MetaHelpers | null>(null)
 
-export function makeMetaHelpers(meta: Meta): MetaHelpers {
-  const ab = new Map(meta.antibiotics.map(a => [a.antibiotic_code, a.antibiotic]))
-  const wards = new Map(meta.wards.map(w => [w.ward_code, w.ward_en]))
+export function makeMetaHelpers(meta: Meta, lang: Lang): MetaHelpers {
+  const t = STRINGS[lang]
+  const ab = new Map(meta.antibiotics.map(a => [a.antibiotic_code, lang === 'fi' ? a.antibiotic_fi : a.antibiotic]))
+  const wards = new Map(meta.wards.map(w => [w.ward_code, lang === 'fi' ? w.ward_fi : w.ward_en]))
   return {
     meta,
     abName: code => ab.get(code) ?? code,
     abLabel: code => `${code} · ${ab.get(code) ?? code}`,
     wardName: code => wards.get(code) ?? code,
+    specimenName: s => t.specimen[s] ?? s,
+    scenarioName: s => t.scenario[s] ?? s,
+    tierName: tier => t.tier[tier] ?? String(tier),
   }
 }
 

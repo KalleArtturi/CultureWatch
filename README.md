@@ -53,7 +53,19 @@ npm install        # first time only
 npm run dev
 ```
 
-Open http://localhost:5173. The API's own docs are at http://localhost:8000/docs.
+Open http://localhost:5173. The API's own docs are at http://localhost:8000/docs. The UI is in Finnish and English (FI / EN in the top bar).
+
+#### Share it on phones (demo / jury)
+
+The API also serves the built UI, so one address is enough:
+
+```bash
+cd web && npm run build && cd ..
+uvicorn api.main:app --port 8000                    # API + built UI on http://localhost:8000
+cloudflared tunnel --url http://localhost:8000       # prints a public https://….trycloudflare.com link
+```
+
+Open the printed link on the laptop and press **Share / Jaa** to show a QR code that opens the same page on any phone. The link works only while both commands run, and changes every time the tunnel restarts. (Install cloudflared: `winget install Cloudflare.cloudflared` or `brew install cloudflared`.)
 
 ---
 

@@ -2,7 +2,7 @@ import { useApi } from '../api'
 import { FilterBar } from '../components/FilterBar'
 import { useTooltip } from '../components/Tooltip'
 import { num, pct } from '../format'
-import { filterParams, useMeta, type Filters } from '../state'
+import { filterParams, useMeta, useT, type Filters } from '../state'
 import type { AbCell, AntibiogramResp } from '../types'
 
 function band(c: AbCell | undefined): string {
@@ -20,6 +20,7 @@ function toCsv(d: AntibiogramResp, cell: (o: string, a: string) => AbCell | unde
 
 export function AntibiogramView({ filters, setFilters }: { filters: Filters; setFilters: (f: Filters) => void }) {
   const { meta, abLabel } = useMeta()
+  const { t } = useT()
   const { data, error, loading } = useApi<AntibiogramResp>('/api/antibiogram', filterParams(filters))
   const tip = useTooltip()
 
@@ -38,19 +39,23 @@ export function AntibiogramView({ filters, setFilters }: { filters: Filters; set
   const tipFor = (c: AbCell) => (
     <>
       <div className="tt-title"><span className="italic">{c.organism}</span> · {abLabel(c.antibiotic_code)}</div>
-      {c.intrinsic ? <div className="tt-value">Intrinsic resistance</div>
-        : c.pct_resistant === null ? <div className="tt-value">n&lt;{meta.min_isolates}: too few isolates</div>
-        : <div className="tt-value">{pct(c.pct_resistant)} resistant</div>}
-      <div>{num(c.n_resistant)} of {num(c.n_tested)} isolates resistant</div>
-      {c.ci_low !== null && <div className="secondary">95% CI {pct(c.ci_low)}–{pct(c.ci_high)}</div>}
+      {c.intrinsic ? <div className="tt-value">{t.abg.intrinsic}</div>
+        : c.pct_resistant === null ? <div className="tt-value">{t.common.tooFew(meta.min_isolates)}</div>
+        : <div className="tt-value">{t.charts.resistant(pct(c.pct_resistant))}</div>}
+      <div>{t.common.resistedOf(num(c.n_resistant), num(c.n_tested))}</div>
+      {c.ci_low !== null && c.ci_high !== null && <div className="secondary">{t.common.ci(pct(c.ci_low), pct(c.ci_high))}</div>}
     </>
   )
+
+  // Cell text: the % without its sign (the column says it), or IR / n<30
+  const cellText = (c: AbCell | undefined) =>
+    !c ? '' : c.pct_resistant !== null ? num(c.pct_resistant * 100, 1) : c.intrinsic ? 'IR' : t.common.nLow(meta.min_isolates)
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
       <div className="view-head">
-        <h1>Antibiogram</h1>
-        <span className="sub">% of first isolates resistant, per organism and antibiotic</span>
+        <h1>{t.abg.title}</h1>
+        <span className="sub">{t.abg.sub}</span>
       </div>
       <FilterBar filters={filters} onChange={setFilters} />
       {error && <p className="error">{error}</p>}
@@ -58,15 +63,15 @@ export function AntibiogramView({ filters, setFilters }: { filters: Filters; set
         <div className={`card${loading ? ' loading' : ''}`}>
           <div className="card-head">
             <div className="legend">
-              <span><span className="sw" style={{ background: 'color-mix(in srgb, var(--good) 22%, var(--surface))' }} />&lt;10% resistant</span>
-              <span><span className="sw" style={{ background: 'color-mix(in srgb, var(--warning) 32%, var(--surface))' }} />10–20%</span>
-              <span><span className="sw" style={{ background: 'color-mix(in srgb, var(--critical) 26%, var(--surface))' }} />&gt;20%</span>
-              <span><span className="sw" style={{ background: 'var(--surface-2)' }} />IR = intrinsic · n&lt;{meta.min_isolates} = too few</span>
-              <span>* urine samples only</span>
+              <span><span className="sw" style={{ background: 'color-mix(in srgb, var(--good) 22%, var(--surface))' }} />{t.abg.lt10}</span>
+              <span><span className="sw" style={{ background: 'color-mix(in srgb, var(--warning) 32%, var(--surface))' }} />{t.abg.mid}</span>
+              <span><span className="sw" style={{ background: 'color-mix(in srgb, var(--critical) 26%, var(--surface))' }} />{t.abg.gt20}</span>
+              <span><span className="sw" style={{ background: 'var(--surface-2)' }} />{t.abg.grey(meta.min_isolates)}</span>
+              <span>{t.abg.urineOnly}</span>
             </div>
-            <button type="button" className="btn" onClick={download}>Download CSV</button>
+            <button type="button" className="btn" onClick={download}>{t.common.downloadCsv}</button>
           </div>
-          {data.organisms.length === 0 ? <p className="muted">No isolates match these filters.</p> : (
+          {data.organisms.length === 0 ? <p className="muted">{t.abg.none}</p> : (
             <div className="table-wrap">
               <table className="abg">
                 <thead>
@@ -93,7 +98,7 @@ export function AntibiogramView({ filters, setFilters }: { filters: Filters; set
                             onFocus={c ? e => tip.showAt(e.currentTarget, tipFor(c)) : undefined}
                             onBlur={tip.hide}
                           >
-                            {c?.label.replace('%', '') ?? ''}
+                            {cellText(c)}
                           </td>
                         )
                       })}
@@ -103,9 +108,7 @@ export function AntibiogramView({ filters, setFilters }: { filters: Filters; set
               </table>
             </div>
           )}
-          <p className="small muted" style={{ marginTop: 10 }}>
-            Values are % resistant. Hover a cell for counts and the 95% confidence interval. Blank = not tested.
-          </p>
+          <p className="small muted" style={{ marginTop: 10 }}>{t.abg.note}</p>
           {tip.node}
         </div>
       )}

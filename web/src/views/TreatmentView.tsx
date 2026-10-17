@@ -5,21 +5,21 @@ import { DataTable } from '../components/DataTable'
 import { FilterBar } from '../components/FilterBar'
 import { Status } from '../components/Status'
 import { num, pct, shortOrg } from '../format'
-import { filterParams, useMeta, type Filters } from '../state'
+import { filterParams, useMeta, useT, type Filters } from '../state'
 import type { TreatmentResp } from '../types'
-
 
 function useDebounced<T>(value: T, ms: number): T {
   const [v, setV] = useState(value)
   useEffect(() => {
-    const t = setTimeout(() => setV(value), ms)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setV(value), ms)
+    return () => clearTimeout(timer)
   }, [value, ms])
   return v
 }
 
 export function TreatmentView({ filters, setFilters }: { filters: Filters; setFilters: (f: Filters) => void }) {
-  const { meta, abLabel } = useMeta()
+  const { meta, abLabel, scenarioName, tierName } = useMeta()
+  const { t } = useT()
   const [scenario, setScenario] = useState(meta.scenarios[0]?.name ?? 'custom')
   const preset = meta.scenarios.find(s => s.name === scenario)
   const [target, setTarget] = useState(preset?.target ?? 0.85)
@@ -42,47 +42,45 @@ export function TreatmentView({ filters, setFilters }: { filters: Filters; setFi
   return (
     <div style={{ display: 'grid', gap: 16 }}>
       <div className="view-head">
-        <h1>Treatment guide</h1>
-        <span className="sub">Which antibiotic would have covered this kind of infection?</span>
+        <h1>{t.treat.title}</h1>
+        <span className="sub">{t.treat.sub}</span>
       </div>
 
       <div className="filter-bar">
         <label className="field">
-          <span>Scenario</span>
-          <select value={scenario} onChange={e => pickScenario(e.target.value)} style={{ minWidth: 240 }}>
-            {meta.scenarios.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
-            <option value="custom">Custom (use the filters below)</option>
+          <span>{t.treat.scenario}</span>
+          <select value={scenario} onChange={e => pickScenario(e.target.value)} style={{ minWidth: 260 }}>
+            {meta.scenarios.map(s => <option key={s.name} value={s.name}>{scenarioName(s.name)}</option>)}
+            <option value="custom">{t.treat.custom}</option>
           </select>
         </label>
         <label className="field">
-          <span>Coverage target: <strong className="num">{Math.round(target * 100)}%</strong></span>
+          <span>{t.treat.target}: <strong className="num">{pct(target, 0)}</strong></span>
           <input type="range" min={0.5} max={0.99} step={0.01} value={target} onChange={e => setTarget(Number(e.target.value))} style={{ width: 200, height: 32 }} />
         </label>
       </div>
-      {custom ? <FilterBar filters={filters} onChange={setFilters} /> : (
-        <p className="ignored-note">This scenario sets its own filters. Choose "Custom" in the scenario list to use the filters.</p>
-      )}
+      {custom ? <FilterBar filters={filters} onChange={setFilters} /> : <p className="ignored-note">{t.treat.presetNote}</p>}
 
       {error && <p className="error">{error}</p>}
       {data && (
         <div className={loading ? 'loading' : undefined} style={{ display: 'grid', gap: 16 }}>
           {!data.reportable ? (
             <div className="banner warning">
-              <Status kind="muted">Not enough data</Status>
-              <span>Only {data.n_isolates} isolates match. At least {meta.min_isolates} are needed for a coverage estimate, so no suggestion is shown.</span>
+              <Status kind="muted">{t.status.notEnough}</Status>
+              <span>{t.treat.tooFew(data.n_isolates, meta.min_isolates)}</span>
             </div>
           ) : picked ? (
             <div className="banner good">
-              <Status kind="good">Suggested</Status>
+              <Status kind="good">{t.status.suggested}</Status>
               <div>
                 <strong>{regimenLabel(picked.regimen)}</strong>
-                <span>covers {pct(picked.coverage, 0)} (95% CI {pct(picked.ci_low, 0)}–{pct(picked.ci_high, 0)}) · {picked.tier_name} · based on {num(data.n_isolates)} isolates</span>
+                <span>{t.treat.covers(pct(picked.coverage, 0), pct(picked.ci_low, 0), pct(picked.ci_high, 0), tierName(picked.tier), num(data.n_isolates))}</span>
               </div>
             </div>
           ) : (
             <div className="banner warning">
-              <Status kind="critical">No match</Status>
-              <span>No single antibiotic or two-drug combination reaches {pct(data.target, 0)} coverage.</span>
+              <Status kind="critical">{t.status.noMatch}</Status>
+              <span>{t.treat.noneReaches(pct(data.target, 0))}</span>
             </div>
           )}
 
@@ -90,17 +88,17 @@ export function TreatmentView({ filters, setFilters }: { filters: Filters; setFi
             <div className="grid-3-2">
               <div className="card">
                 <div className="card-head">
-                  <h3>Expected coverage, single antibiotics</h3>
-                  <p>dashed line = target · whiskers = 95% CI · grey = below target</p>
+                  <h3>{t.treat.singleTitle}</h3>
+                  <p>{t.treat.singleSub}</p>
                 </div>
                 <BarList
-                  ariaLabel="Coverage per antibiotic"
-                  labelWidth="48%"
+                  ariaLabel={t.treat.singleTitle}
+                  labelWidth="50%"
                   max={1}
                   target={data.target}
                   items={[...data.single].sort((a, b) => b.coverage - a.coverage).map(r => ({
                     key: r.regimen,
-                    label: <>{abLabel(r.regimen)}<span className="chip">{r.tier_name}</span></>,
+                    label: <>{abLabel(r.regimen)}<span className="chip">{tierName(r.tier)}</span></>,
                     value: r.coverage,
                     display: pct(r.coverage, 0),
                     ciLow: r.ci_low,
@@ -109,10 +107,10 @@ export function TreatmentView({ filters, setFilters }: { filters: Filters; setFi
                     picked: r.regimen === data.recommended,
                     tooltip: (
                       <>
-                        <div className="tt-title">{abLabel(r.regimen)} · {r.tier_name}</div>
-                        <div className="tt-value">{pct(r.coverage)} covered</div>
-                        <div>{num(r.n_covered)} of {num(r.n_isolates)} isolates</div>
-                        <div className="secondary">95% CI {pct(r.ci_low)}–{pct(r.ci_high)}</div>
+                        <div className="tt-title">{abLabel(r.regimen)} · {tierName(r.tier)}</div>
+                        <div className="tt-value">{t.treat.covered(pct(r.coverage))}</div>
+                        <div>{t.common.ofIsolates(num(r.n_covered), num(r.n_isolates))}</div>
+                        <div className="secondary">{t.common.ci(pct(r.ci_low), pct(r.ci_high))}</div>
                       </>
                     ),
                   }))}
@@ -120,8 +118,8 @@ export function TreatmentView({ filters, setFilters }: { filters: Filters; setFi
               </div>
               <div style={{ display: 'grid', gap: 16, alignContent: 'start' }}>
                 <div className="card">
-                  <div className="card-head"><h3>Bacteria causing these infections</h3><p>{num(data.n_isolates)} first isolates</p></div>
-                  <BarList ariaLabel="Organism mix" max={1} items={data.organism_mix.slice(0, 8).map(o => ({
+                  <div className="card-head"><h3>{t.treat.causes}</h3><p>{t.treat.firstIsolates(num(data.n_isolates))}</p></div>
+                  <BarList ariaLabel={t.treat.causes} max={1} items={data.organism_mix.slice(0, 8).map(o => ({
                     key: o.organism,
                     label: <span className="italic">{shortOrg(o.organism)}</span>,
                     value: o.share,
@@ -129,20 +127,17 @@ export function TreatmentView({ filters, setFilters }: { filters: Filters; setFi
                   }))} />
                 </div>
                 <div className="card">
-                  <div className="card-head"><h3>Two-drug combinations</h3><p>top 10 by coverage</p></div>
+                  <div className="card-head"><h3>{t.treat.combos}</h3><p>{t.treat.combosSub}</p></div>
                   <DataTable rows={data.combos} rowKey={r => r.regimen} columns={[
-                    { key: 'r', header: 'Regimen', render: r => r.regimen },
-                    { key: 'c', header: 'Coverage', numeric: true, render: r => pct(r.coverage, 0) },
-                    { key: 't', header: 'Tier', render: r => r.tier_name },
+                    { key: 'r', header: t.treat.regimen, render: r => r.regimen },
+                    { key: 'c', header: t.treat.coverage, numeric: true, render: r => pct(r.coverage, 0) },
+                    { key: 't', header: t.treat.tier, render: r => tierName(r.tier) },
                   ]} />
                 </div>
               </div>
             </div>
           )}
-          <p className="small muted">
-            Coverage for a patient group, not a prescription. The choice depends on the patient, severity and local guidelines;
-            adjust when the culture result arrives. Stewardship tiers are illustrative.
-          </p>
+          <p className="small muted">{t.treat.disclaimer}</p>
         </div>
       )}
     </div>

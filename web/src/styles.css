@@ -258,6 +258,24 @@ tbody tr:hover td { background: var(--surface-2); }
 .ward-card:hover { border-color: var(--series-1); }
 .ward-card .code { font-size: 12px; color: var(--text-2); }
 
+/* ---------- Plain-language summary ---------- */
+.summary {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px 16px; display: grid; gap: 6px; box-shadow: inset 4px 0 0 var(--good);
+}
+.summary.attention { box-shadow: inset 4px 0 0 var(--critical); }
+.summary h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-2); }
+.summary p { font-size: 15px; max-width: 900px; }
+
+/* ---------- Share dialog ---------- */
+.overlay { position: fixed; inset: 0; z-index: 100; background: rgba(0, 0, 0, 0.45); display: grid; place-items: center; padding: 16px; }
+.dialog {
+  background: var(--surface); color: var(--text); border-radius: 14px; padding: 22px; width: min(420px, 100%);
+  display: grid; gap: 12px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+.qr { justify-self: center; width: 280px; height: 280px; max-width: 100%; image-rendering: pixelated; background: #fff; padding: 8px; border-radius: 8px; }
+.share-url { display: block; font-size: 12px; padding: 8px; border-radius: 6px; background: var(--surface-2); overflow-wrap: anywhere; }
+
 .error { color: var(--critical-text); }
 .methods { max-width: 760px; }
 .methods li { margin: 6px 0; }

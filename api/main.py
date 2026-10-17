@@ -5,10 +5,12 @@ Run from the CultureWatch folder:  uvicorn api.main:app --reload --port 8000"""
 import json
 from datetime import date
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal, NamedTuple
 
 import pandas as pd
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
 
 import cw_utils as cw
 import antibiogram as ab
@@ -212,9 +214,24 @@ def ward_profile(f: dict = Depends(filter_params), s: Snap = Depends(snap)):
 @app.get("/api/trend")
 def trend(organism: str, antibiotic: str, f: dict = Depends(filter_params), s: Snap = Depends(snap)):
     """Quarterly resistance for one pair. Time filters are ignored: this view shows all time."""
-    t = ht.trend_table(s.ast, organism, antibiotic, **without(f, "period", "date_from", "date_to"))
+    f = without(f, "period", "date_from", "date_to")
+    t = ht.trend_table(s.ast, organism, antibiotic, **f)
+    quarters = sorted(ht.add_quarter(cw.apply_filters(s.ast, **f)).quarter.unique())
+    t["x"] = [quarters.index(q) for q in t.quarter]  # position on the shared quarter axis
+    projection = ht.project_trend(t, quarters, end=s.latest) if len(t) >= 2 else None
     return dict(points=records(t), z=float(t.attrs["z"]), p_value=float(t.attrs["p_value"]),
-                direction=t.attrs["direction"])
+                direction=t.attrs["direction"], quarters=quarters, limit=ht.EMPIRICAL_LIMIT, projection=projection)
+
+
+@app.get("/api/expiry")
+def expiry(f: dict = Depends(filter_params), s: Snap = Depends(snap)):
+    """Guideline expiry watch: pairs whose resistance is rising towards or past the 20% empirical-use limit,
+    with the projected crossing date. Time filters are ignored (the trend uses every quarter)."""
+    w, quarters = ht.expiry_watch(s.ast, end=s.latest, **without(f, "period", "date_from", "date_to"))
+    order = {"crossing": 0, "crossed": 1, "rising": 2, "above": 3, "improving": 4, "stable": 5}
+    w = w.assign(_o=w.status.map(order), tier=w.antibiotic_code.map(tg.TIERS).fillna(2).astype(int))
+    w = w.sort_values(["_o", "months_left", "p_value"]).drop(columns="_o")
+    return dict(limit=ht.EMPIRICAL_LIMIT, quarters=quarters, as_of=s.latest.date().isoformat(), pairs=records(w))
 
 
 @app.get("/api/trend-summary")
@@ -312,3 +329,10 @@ def ward_view(code: str, specimen: str | None = None, s: Snap = Depends(snap)):
                                                 .reset_index(name="n")),
                            pairs=records(pairs)),
     )
+
+
+# ---------- Serve the built web UI (web/dist) from the same origin, for sharing one public link ----------
+# Mounted last so every /api route above takes precedence. Build it first: cd web && npm run build
+WEB_DIST = Path(__file__).resolve().parent.parent / "web" / "dist"
+if WEB_DIST.exists():
+    app.mount("/", StaticFiles(directory=WEB_DIST, html=True), name="web")
