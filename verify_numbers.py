@@ -132,6 +132,23 @@ raw_counts = pd.concat(fs).value_counts().to_dict()
 app_counts = pd.Series([f["status"] for f in api("findings", days=7)["findings"]], dtype=object).value_counts().to_dict()
 check("findings last 7 days: count by carrier status", raw_counts, app_counts)
 
+# 8. Result checks, all time: contradictions, natural-resistance violations, unconfirmed ceftriaxone resistance
+w = sus.pivot_table(index="isolate_id", columns="antibiotic_code", values="result", aggfunc="first")
+x = isolates.set_index("isolate_id").join(w)
+sa, eckp = x[x.organism == "Staphylococcus aureus"], x[x.organism.isin(["Escherichia coli", "Klebsiella pneumoniae"])]
+entc = x[x.organism.isin(["Enterococcus faecalis", "Enterococcus faecium"])]
+contradictions = int(((sa.mrsa == 1) & (sa.FOX == "S")).sum() + ((sa.FOX == "R") & (sa.mrsa != 1)).sum()
+                     + ((eckp.esbl == 1) & (eckp.CRO == "S")).sum()
+                     + ((entc.vre == 1) & (entc.VAN == "S")).sum() + ((entc.VAN == "R") & (entc.vre != 1)).sum())
+natural = int(((x.organism.isin(["Klebsiella pneumoniae", "Klebsiella oxytoca", "Citrobacter freundii"])) & (x.AMP == "S")).sum()
+              + ((x.organism == "Proteus mirabilis") & (x.NIT == "S")).sum())
+unconfirmed = int(((eckp.CRO == "R") & (eckp.esbl != 1) & (eckp.cpe != 1)).sum())
+c = api("checks")["counts"]
+check("result checks all time: contradictions", contradictions, c["contradiction"])
+check("result checks all time: natural-resistance violations", natural, c["impossible"])
+check("result checks all time: ceftriaxone-R without ESBL/CPE (confirm)", unconfirmed,
+      next(r["flagged"] for r in api("checks")["rules"] if r["rule"] == "esc_r_unconfirmed"))
+
 # ---------- Report ----------
 width = max(len(r[0]) for r in rows)
 print(f"Data checked: {RAW.relative_to(ROOT)}\n")

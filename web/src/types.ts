@@ -78,6 +78,34 @@ export interface ImportStatus {
   required: string[]
 }
 
+export type CheckCategory = 'contradiction' | 'impossible' | 'confirm'
+
+export interface CheckCounts {
+  checked: number
+  contradiction: number
+  impossible: number
+  confirm: number
+}
+
+export interface ChecksResp {
+  start: string
+  end: string
+  counts: CheckCounts
+  rules: { rule: string; checked: number; flagged: number; category: CheckCategory; basis: string }[]
+  flagged: {
+    isolate_id: string
+    rule: string
+    antibiotic_code: string
+    result: string | null
+    category: CheckCategory
+    patient_id: string
+    sample_date: string
+    ward_code: string
+    specimen: string
+    organism: string
+  }[]
+}
+
 export interface ImportReport {
   mode: 'append' | 'replace'
   ok: boolean
@@ -88,6 +116,7 @@ export interface ImportReport {
   date_max: string | null
   passed: string | null
   applied?: boolean
+  result_checks?: CheckCounts & { examples: { isolate_id: string; rule: string }[] }
 }
 
 export interface TimelineAlert {

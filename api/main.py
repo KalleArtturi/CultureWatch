@@ -17,6 +17,7 @@ import cw_utils as cw
 import antibiogram as ab
 import treatment_guide as tg
 import hospital_trends as ht
+import result_checks as rc
 from api import importer
 
 app = FastAPI(title="CultureWatch API")
@@ -174,6 +175,32 @@ def findings(days: int = 7, phenotype: Literal["esbl", "mrsa", "vre", "cpe"] | N
                 history_complete=bool((start - data_start).days >= ht.CARRIER_MEMORY_DAYS),
                 findings=records(f.assign(sample_date=f.sample_date.dt.date.astype(str),
                                           prev_date=f.prev_date.dt.date.astype(str).where(f.prev_date.notna()))))
+
+
+@lru_cache(maxsize=1)
+def checks_all():
+    """Result checks on every isolate, once per data load (rules do not depend on the date)."""
+    d = data()
+    ev = rc.evaluate(d.iso_all, d.ast_all)
+    info = d.iso_all[["isolate_id", "patient_id", "sample_date", "ward_code", "specimen", "organism"]]
+    return ev.merge(info, on="isolate_id", how="left")
+
+
+@app.get("/api/checks")
+def checks(window: Window | None = None, ward: str | None = None, s: Snap = Depends(snap)):
+    """Result checks before release: per rule how many isolates were checked and flagged in the period,
+    and the flagged isolates. window=None means all data up to the (time machine) date."""
+    ev = checks_all()
+    ev = ev[ev.sample_date <= s.latest]
+    start = cw.window_dates(s.latest, window)[0] if window else ev.sample_date.min()
+    ev = ev[ev.sample_date >= start]
+    if ward:
+        ev = ev[ev.ward_code == ward]
+    flagged = ev[ev.flagged].sort_values(["sample_date", "isolate_id"], ascending=[False, True])
+    return dict(start=pd.Timestamp(start).date().isoformat(), end=s.latest.date().isoformat(),
+                counts=rc.category_counts(ev), rules=records(rc.summary(ev)),
+                flagged=records(flagged.assign(sample_date=flagged.sample_date.dt.date.astype(str))
+                                .drop(columns=["flagged"])))
 
 
 @app.get("/api/alert-timeline")
@@ -385,7 +412,7 @@ def local_only(request: Request):
 
 
 def reload_data():
-    for cached in (data, _snapshot, ward_visits):
+    for cached in (data, _snapshot, ward_visits, checks_all):
         cached.cache_clear()
 
 

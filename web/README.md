@@ -14,6 +14,7 @@ Some bacteria learn to survive antibiotics. When that happens, the usual medicin
 |---|---|
 | **My ward** | Opens on your own ward. A short summary in plain words, then: anything unusual **in the last 4 weeks**? Is resistance **worse than last year** or worse than the rest of the hospital? |
 | **Findings** | The lab's daily to-do list: every new resistant bacterium found, whether the patient is a **new or known carrier**, and checkboxes for who has been told (infection unit, ward, home municipality). |
+| **Result checks** | The checks a lab scientist does before releasing results, run on every isolate: results that contradict each other (e.g. marked MRSA but the cefoxitin test says susceptible), results that are biologically impossible (susceptible to a drug the species naturally resists), and unusual resistance that needs a confirmation test. Based on EUCAST rules. New CSV imports are checked the same way. |
 | **Alerts** | Every ward at once: which wards have more cases than normal right now, and every alert in the past. |
 | **Hospital** | The big picture: totals, ward "hotspots", hospital vs outpatient resistance. |
 | **Antibiogram** | A colour table: for each bacterium and each antibiotic, how often the antibiotic **fails** (green = rarely, red = often). |

@@ -10,6 +10,7 @@ import { STRINGS, type Lang } from './strings'
 import type { Meta, Ward } from './types'
 import { AlertsView } from './views/AlertsView'
 import { AntibiogramView } from './views/AntibiogramView'
+import { ChecksView } from './views/ChecksView'
 import { FindingsView } from './views/FindingsView'
 import { HospitalView } from './views/HospitalView'
 import { ImportView } from './views/ImportView'
@@ -18,7 +19,7 @@ import { TreatmentView } from './views/TreatmentView'
 import { TrendsView } from './views/TrendsView'
 import { WardView } from './views/WardView'
 
-const ROUTES = ['ward', 'findings', 'alerts', 'hospital', 'antibiogram', 'treatment', 'trends', 'data', 'methods'] as const
+const ROUTES = ['ward', 'findings', 'checks', 'alerts', 'hospital', 'antibiogram', 'treatment', 'trends', 'data', 'methods'] as const
 type Route = (typeof ROUTES)[number]
 
 function readRoute(): Route {
@@ -114,6 +115,7 @@ export function App() {
               ? <WardView key={known} code={known} onChangeWard={() => setMyWard(null)} />
               : <WardPicker wards={helpers.meta.wards} onPick={setMyWard} />)}
             {route === 'findings' && <FindingsView />}
+            {route === 'checks' && <ChecksView />}
             {route === 'alerts' && <AlertsView myWard={known} />}
             {route === 'hospital' && <HospitalView filters={filters} setFilters={setFilters} onOpenWard={c => { setMyWard(c); go('ward') }} />}
             {route === 'antibiogram' && <AntibiogramView filters={filters} setFilters={setFilters} />}
