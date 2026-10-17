@@ -274,7 +274,7 @@ export function WardView({ code }: { code: string }) {
               { key: 'week', header: t.ward.windowEnding, render: r => date(r.window_end.slice(11, 21)), sort: r => r.window_end },
               { key: 'obs', header: t.common.cases, numeric: true, render: r => r.observed, sort: r => r.observed },
               { key: 'exp', header: t.common.usual, numeric: true, render: r => num(r.expected, 1), sort: r => r.expected },
-              { key: 'p', header: t.common.p, numeric: true, render: r => pValue(r.p_value), sort: r => r.p_value },
+              { key: 'p', header: t.common.p, title: t.common.pHelp, numeric: true, render: r => pValue(r.p_value), sort: r => r.p_value },
             ]}
           />
         </section>

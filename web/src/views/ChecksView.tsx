@@ -96,7 +96,7 @@ export function ChecksView() {
             { key: 's', header: t.filters.specimen, render: r => specimenName(r.specimen) },
             { key: 'o', header: t.common.organism, render: r => <span className="italic">{shortOrg(r.organism)}</span>, sort: r => r.organism },
             { key: 'r', header: t.checks.result, render: r => <span className="num">{r.antibiotic_code} {r.result ?? '–'}</span> },
-            { key: 'c', header: t.checks.rule, render: r => <Status kind={kind(r.category)}>{t.checks.rules[r.rule] ?? r.rule}</Status>, sort: r => r.category },
+            { key: 'c', header: t.checks.rule, render: r => <span title={t.checks.rules[r.rule] ?? r.rule}><Status kind={kind(r.category)}>{t.checks.rulesShort[r.rule] ?? t.checks.rules[r.rule] ?? r.rule}</Status></span>, sort: r => r.category },
           ]}
         />
       </div>

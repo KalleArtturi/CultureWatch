@@ -94,9 +94,9 @@ export function HospitalView({ filters, setFilters, onOpenWard }: {
               { key: 'n', header: t.ward.firstIsolates, numeric: true, render: r => num(r.first_isolates), sort: r => r.first_isolates },
               { key: 'ho', header: t.hosp.hoCol, numeric: true, render: r => pct(r.hospital_onset_share, 0), sort: r => r.hospital_onset_share },
               { key: 'esbl', header: 'ESBL %', numeric: true, render: r => r.esbl_pct === null ? small : pct(r.esbl_pct), sort: r => r.esbl_pct },
-              { key: 'esblp', header: t.common.pAbove, numeric: true, render: r => <PFlag p={r.esbl_p_above} />, sort: r => r.esbl_p_above },
+              { key: 'esblp', header: t.common.pAbove, title: t.common.pHelp, numeric: true, render: r => <PFlag p={r.esbl_p_above} />, sort: r => r.esbl_p_above },
               { key: 'mrsa', header: 'MRSA %', numeric: true, render: r => r.mrsa_pct === null ? small : pct(r.mrsa_pct), sort: r => r.mrsa_pct },
-              { key: 'mrsap', header: t.common.pAbove, numeric: true, render: r => <PFlag p={r.mrsa_p_above} />, sort: r => r.mrsa_p_above },
+              { key: 'mrsap', header: t.common.pAbove, title: t.common.pHelp, numeric: true, render: r => <PFlag p={r.mrsa_p_above} />, sort: r => r.mrsa_p_above },
               { key: 'vre', header: 'VRE', numeric: true, render: r => r.vre_n, sort: r => r.vre_n },
               { key: 'cpe', header: 'CPE', numeric: true, render: r => r.cpe_n, sort: r => r.cpe_n },
             ]}
@@ -124,7 +124,7 @@ export function HospitalView({ filters, setFilters, onOpenWard }: {
               { key: 'h', header: t.hosp.hoCol, numeric: true, render: r => r.pct_hospital === null ? small : pct(r.pct_hospital), sort: r => r.pct_hospital },
               { key: 'nh', header: t.common.n, numeric: true, render: r => num(r.n_hospital) },
               { key: 'd', header: t.hosp.difference, numeric: true, render: r => pp(r.diff_pp), sort: r => r.diff_pp },
-              { key: 'p', header: t.common.p, numeric: true, render: r => <PFlag p={r.p_value} />, sort: r => r.p_value },
+              { key: 'p', header: t.common.p, title: t.common.pHelp, numeric: true, render: r => <PFlag p={r.p_value} />, sort: r => r.p_value },
             ]}
           />
         )}

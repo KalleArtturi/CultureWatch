@@ -92,7 +92,7 @@ export function TrendsView({ filters, setFilters }: { filters: Filters; setFilte
               { key: 'f', header: t.trends.firstQ, numeric: true, render: r => pct(r.first) },
               { key: 'l', header: t.trends.lastQ, numeric: true, render: r => pct(r.last) },
               { key: 'd', header: t.trends.direction, render: r => t.trends.dir[r.direction] ?? r.direction },
-              { key: 'p', header: t.common.p, numeric: true, sort: r => r.p_value, render: r => r.significant ? <Status kind="critical">{pValue(r.p_value)}</Status> : pValue(r.p_value) },
+              { key: 'p', header: t.common.p, title: t.common.pHelp, numeric: true, sort: r => r.p_value, render: r => r.significant ? <Status kind="critical">{pValue(r.p_value)}</Status> : pValue(r.p_value) },
             ]}
           />
         )}

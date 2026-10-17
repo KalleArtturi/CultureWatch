@@ -323,6 +323,19 @@ details summary { cursor: pointer; color: var(--text-2); }
   .bar-row { grid-template-columns: minmax(90px, 38%) 1fr 56px; }
 }
 
+/* Phones: one compact header, and the tab row wraps instead of hiding Import / Methods off-screen. */
+@media (max-width: 600px) {
+  .app-header { gap: 8px 10px; padding-top: 10px; padding-bottom: 10px; }
+  .app-header .header-date, .app-header .header-spacer { display: none; }
+  .app-header .synthetic { order: 1; }
+  .my-ward label { display: none; }
+  .my-ward select { max-width: 200px; }
+  .nav { flex-wrap: wrap; overflow-x: visible; padding-left: 8px; padding-right: 8px; }
+  .nav a { padding: 9px 8px; }
+  .nav .header-spacer { flex-basis: 100%; height: 0; }
+  .subnav { padding-left: 16px; padding-right: 16px; }
+}
+
 .demo-callout {
   display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
   margin-bottom: 20px; padding: 14px 18px; border-radius: var(--radius);

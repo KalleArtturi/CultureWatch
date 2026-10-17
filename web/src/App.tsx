@@ -90,7 +90,7 @@ export function App() {
           <div className={`top${asOf ? ' replaying' : ''}`}>
             <header className="app-header">
               <a className="brand" href="#/ward" title={t.nav.ward}><span className="brand-mark" aria-hidden="true" />CultureWatch</a>
-              <span className="muted small">{asOf ? t.app.replaying(date(asOf)) : t.app.dataThrough(date(helpers.meta.date_max))}</span>
+              <span className="muted small header-date">{asOf ? t.app.replaying(date(asOf)) : t.app.dataThrough(date(helpers.meta.date_max))}</span>
               <span className="header-spacer" />
               <button type="button" className={`btn${asOf ? '' : ' primary'}`} aria-pressed={asOf !== null}
                 onClick={() => { setAutoPlay(false); setAsOf(asOf ? null : weeks[weeks.length - 1]) }}
