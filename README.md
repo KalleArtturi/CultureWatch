@@ -57,17 +57,6 @@ All views share a filter bar: period, specimen (urine/blood/wound), setting, war
 
 ---
 
-## Quick start (if you already have conda)
-
-```bash
-git clone https://github.com/KalleArtturi/CultureWatch.git
-cd CultureWatch
-conda env create -f environment.yml
-conda activate CultureWatch
-python run_pipeline.py
-streamlit run app.py
-```
-
 Your browser opens at http://localhost:8501. If anything here is unfamiliar, follow the full guide below.
 
 ### Web UI (TypeScript)
