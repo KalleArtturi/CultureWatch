@@ -7,101 +7,36 @@ CultureWatch takes laboratory culture results and shows which antibiotics are li
 
 ---
 
-## What you get
+## Quick start
 
-Two ways to look at the same numbers:
-
-- **The web app** (`web/`, Finnish and English), built around the people who use it: ward staff, the infection unit and lab scientists. Every feature is listed below.
-- **The Streamlit app** (`app.py`), the team's analysis prototype with six views (table further down).
-
-### Web app: every feature in plain words
-
-The tabs are grouped by who uses them: **My ward** (ward staff), **Infection control** (the infection unit), **Lab** (lab scientists) and **Analysis** (everyone writing guidelines). **Import** and **Methods** sit on the right of the tab bar.
-
-| Where | Feature | What it does for you |
-|---|---|---|
-| **My ward** | Own-ward view | Opens on your own ward. A short summary in everyday words, then: anything unusual **in the last 4 weeks** (alerts), and is resistance **worse than last year or than the rest of the hospital** (signals). |
-| **Infection control** | Findings | The infection unit's daily to-do list: every new resistant bacterium (MRSA, ESBL, VRE, CPE), whether the patient is a **new or known carrier**, where the patient was before, and tick-boxes for who has been told. Searchable, export as a line list. |
-| | Alerts | All wards at once: which have more cases than normal right now, plus every past alert. |
-| | Spread | **Where new carriers had been in the 30 days before their finding**, as a flow chart from ward to ward. Each ward has its own colour; hover a ward or band to highlight its flows. A lead for infection control, not proof of transmission. |
-| | Weekly summary | One printable page for the infection unit: wards on alert, new resistant findings and results to check from the last 7 days. |
-| **Lab** | Result checks | The checks a lab scientist does before releasing results, run on every isolate (EUCAST rules): results that contradict each other, results that are biologically impossible, and unusual resistance that needs a confirmation test. Searchable. |
-| **Analysis** | Hospital | The big picture: totals, ward hotspots, resistance **by the patient's home area**, hospital vs outpatient resistance. |
-| | Antibiogram | Colour table: how often each antibiotic fails against each bacterium. Download as CSV or **print / save as PDF** as a one-page cumulative antibiogram. |
-| | Treatment guide | For an infection type, which antibiotic would have worked for most past patients. |
-| | Trends | Is resistance rising? The chart comes first; below it the **guideline expiry date**: when a common antibiotic crosses the 20% line where doctors stop starting it before the lab result. |
-| Top right | Import | Upload new lab results as CSV files. Every file is checked first (the pipeline's 16 checks and the result checks); nothing changes unless all checks pass, and the original data can always be restored. |
-| | Methods | Every rule and calculation, written out, plus how a resistant finding is handled. |
-| Top bar | **Historical replay** | Rewind to any week and press Play: the whole app shows what it would have shown that day. **Replay a past outbreak** on the start page opens the clearest outbreak in the data (ICU, MRSA, March 2026) and plays until the alert fires. |
-| | FI / EN | The whole app in Finnish and English, with Finnish number and date formats. |
-| | Logo | Back to the start page. |
-| Everywhere | Tables for real volumes | Every table shows 25 rows per page; sorting and search work across all rows. Filters beyond time and specimen sit behind **More filters**. Works on phones. |
-| | Verified numbers | `verify_numbers.py` recomputes the numbers from the raw files with separate code and compares them with the app (31/31 match), including spread, home areas and the weekly summary. |
-
-The **Share / Jaa** QR code is built in but hidden for now (`SHOW_SHARE` in `web/src/App.tsx`).
-
-How to run it: see [Web UI (TypeScript)](#web-ui-typescript) below. A plain-language guide to the web app is in [web/README.md](web/README.md).
-
-### Streamlit app: six views
-
-| View | What it answers |
-|---|---|
-| **Overview** | Headline numbers: isolates, ESBL %, MRSA %, VRE/CPE cases, biggest changes vs last year |
-| **Antibiogram** | How often each bacterium is resistant to each antibiotic (colour-coded table) |
-| **Treatment Guide** | Which antibiotic is most likely to work for an infection scenario, e.g. "cystitis in a woman" |
-| **Hospital & Wards** | Is resistance higher in hospital than in the community? Which wards are hotspots? |
-| **Trends & Alerts** | Is resistance rising over time? Are there unusual clusters of MRSA or ESBL on a ward? |
-| **Methods** | The rules and definitions behind every number |
-
-All views share a filter bar: period, specimen (urine/blood/wound), setting, ward, sex and age group.
-
----
-
-Your browser opens at http://localhost:8501. If anything here is unfamiliar, follow the full guide below.
-
-### Web UI (TypeScript)
-
-A React + TypeScript front end in `web/`, built around the ward: it opens on your ward's last 4 weeks (cluster alerts vs the ward's usual level) and last 12 months (resistance vs the previous 12 months and vs all sites). It talks to a small FastAPI layer in `api/` that calls the same Python functions as the Streamlit app, so both always show the same numbers.
-
-Needs [Node.js](https://nodejs.org) 20+ in addition to the conda environment. After `python run_pipeline.py`, run in two terminals:
+For computers that already have **conda**, **Node.js 22+** and **Git**. Otherwise follow the [full setup guide](#full-setup-guide-from-zero) below.
 
 ```bash
-# terminal 1: the API (from the CultureWatch folder, environment active)
-python -m uvicorn api.main:app --reload --port 8000
+git clone https://github.com/KalleArtturi/CultureWatch.git
+cd CultureWatch
+# put the organisers' dataset here: unzip synthetic_microbiology_dataset.zip into this folder
 
-# terminal 2: the web UI
-cd web
-npm install        # first time only
-npm run dev
+conda env create -f environment.yml        # once
+conda activate CultureWatch
+python run_pipeline.py                     # once, and again whenever the data changes
+cd web && npm install && npm run build && cd ..   # once, and again after changing web code
+
+python -m uvicorn api.main:app --port 8000
 ```
 
-Open http://localhost:5173. The API's own docs are at http://localhost:8000/docs. The UI is in Finnish and English (FI / EN in the top bar).
+Open **http://localhost:8000**. That's the whole app, in Finnish and English.
 
-`python -m uvicorn` makes sure the environment's own Python runs the API. A plain `uvicorn` can pick up another Python installation on the computer and fail with "No module named 'pandas'".
+**Try it in 30 seconds:** on the start page press **Replay a past outbreak**. The app opens the intensive care unit, plays the weeks before March 2026, and stops when the MRSA alert fires. Then look at **Infection control → Spread** and **Analysis → Antibiogram**.
 
-**Before a demo:** press **Replay a past outbreak** once. Each replayed week is calculated the first time and remembered after that, so the second run is fast.
-
-#### Share it on phones (demo / jury)
-
-The API also serves the built UI, so one address is enough:
-
-```bash
-cd web && npm run build && cd ..
-python -m uvicorn api.main:app --port 8000          # API + built UI on http://localhost:8000
-cloudflared tunnel --url http://localhost:8000       # prints a public https://….trycloudflare.com link
-```
-
-Open the printed link on any device. (The **Share / Jaa** QR button is hidden for now; set `SHOW_SHARE = true` in `web/src/App.tsx` to bring it back.) The link works only while both commands run, and changes every time the tunnel restarts. (Install cloudflared: `winget install Cloudflare.cloudflared` or `brew install cloudflared`.)
-
-#### Check the numbers
-
-With the API running, `python verify_numbers.py` recomputes the headline numbers straight from the raw CSV files with its own, independent code and compares them with what the app serves. It prints OK/FAIL per number and exits with an error if anything differs.
+Prefer the team's Streamlit prototype? After the pipeline step: `streamlit run app.py` (opens http://localhost:8501).
 
 ---
 
 ## Full setup guide (from zero)
 
-Total time: about 15 minutes, mostly downloading. You only do steps 1–4 once.
+About 20 minutes the first time, mostly downloading. Steps 1–8 are done once; after that, see [Everyday use](#everyday-use).
+
+You will need three free tools: **conda** (runs the Python analysis), **Node.js** (builds the web app) and **Git** (gets the code).
 
 ### Step 1: Install Miniforge (conda)
 
@@ -135,7 +70,21 @@ Check it worked:
 conda --version
 ```
 
-### Step 2: Get the code
+### Step 2: Install Node.js
+
+Node.js builds the web app. You need **version 22 or newer** (20.19 also works). Skip this step if `node --version` already prints `v22` or higher.
+
+- **Mac:** download the macOS installer from https://nodejs.org (the "LTS" button) and run it. With Homebrew you can instead run `brew install node`.
+- **Windows:** download the Windows installer from https://nodejs.org and run it with the default options. Then close and reopen Miniforge Prompt.
+- **Linux:** follow https://nodejs.org/en/download for your distribution.
+
+Check it worked:
+```bash
+node --version
+npm --version
+```
+
+### Step 3: Get the code
 
 You need Git (Mac: run `xcode-select --install` if `git --version` fails; Windows: install from https://git-scm.com).
 
@@ -146,7 +95,7 @@ cd CultureWatch
 
 All remaining commands are run **from inside the `CultureWatch` folder**.
 
-### Step 3: Check the dataset is in place
+### Step 4: Put the dataset in place
 
 The raw data must be in a folder called `synthetic_microbiology_dataset` inside the project folder, containing these files:
 
@@ -160,9 +109,9 @@ synthetic_microbiology_dataset/
 └── wards.csv
 ```
 
-If the folder is missing, unzip `synthetic_microbiology_dataset.zip` (provided by the organizers) into the `CultureWatch` folder so the structure matches the above.
+If the folder is missing, unzip `synthetic_microbiology_dataset.zip` (provided by the organizers) into the `CultureWatch` folder so the structure matches the above. The dataset is never put in Git.
 
-### Step 4: Create the Python environment
+### Step 5: Create the Python environment
 
 ```bash
 conda config --set channel_priority strict
@@ -171,7 +120,7 @@ conda env create -f environment.yml
 
 This installs Python 3.11, pandas, numpy, scipy, matplotlib, JupyterLab, Streamlit, FastAPI and Uvicorn into an environment called `CultureWatch`. It takes a few minutes.
 
-### Step 5: Activate the environment
+Then activate it:
 
 ```bash
 conda activate CultureWatch
@@ -185,9 +134,9 @@ Your prompt should now start with `(CultureWatch)`. **Do this every time you ope
 python run_pipeline.py
 ```
 
-This takes about 15 seconds and runs four steps in order:
+This takes under a minute and runs four steps in order:
 
-1. **Preprocess:** validates the raw data, joins the tables and applies the first-isolate rule → `processed/`
+1. **Preprocess:** validates the raw data, joins the tables and applies the first-isolate rule → `data/processed/`
 2. **Antibiograms** → `outputs/antibiogram_*.png` and `.csv`
 3. **Treatment guide** → `outputs/treatment_guide.csv`
 4. **Hospital & trends** → `outputs/hospital_vs_community.csv`, `ward_profile.csv`, `trends.csv`, `alerts_*.csv`
@@ -196,32 +145,154 @@ You should see `Pipeline finished` at the end. If validation fails, the pipeline
 
 Re-run this step whenever the raw data or the processing rules change.
 
-### Step 7: Start the app
+### Step 7: Install and build the web app
+
+```bash
+cd web
+npm install
+npm run build
+cd ..
+```
+
+`npm install` downloads the web app's libraries into `web/node_modules/` (a minute or two, once). `npm run build` checks the code and builds the finished app into `web/dist/` (a few seconds). Neither folder goes into Git.
+
+### Step 8: Start the app
+
+```bash
+python -m uvicorn api.main:app --port 8000
+```
+
+Open **http://localhost:8000**. When the terminal shows `Application startup complete`, the app is ready.
+
+- **Stop it:** press `Ctrl+C` in the terminal.
+- **The first page takes a few seconds** while the data loads into memory; after that pages open in about a second.
+- Use `python -m uvicorn`, not plain `uvicorn`: it makes sure the environment's own Python runs the app. A plain `uvicorn` can pick up another Python on the computer and fail with "No module named 'pandas'".
+
+### Step 9: Check that it works
+
+1. Choose your ward on the start page, or press **Replay a past outbreak**: the intensive care unit should turn red in March 2026 with "3 new MRSA cases in 4 weeks, usually about 0.1".
+2. In a second terminal (with `conda activate CultureWatch`), check every number against the raw files:
+
+   ```bash
+   python verify_numbers.py
+   ```
+
+   It should end with `31/31 numbers match the raw data.`
+
+That's it. 🎉
+
+### Optional: the Streamlit app
+
+The team's analysis prototype runs from the same environment:
 
 ```bash
 streamlit run app.py
 ```
 
-Your browser opens at **http://localhost:8501**. If it doesn't, open that address yourself.
-
-- **Stop the app:** press `Ctrl+C` in the terminal.
-- **After editing code:** click **Rerun** in the top-right corner of the app (or press `R`).
-
-That's it. 🎉
+It opens at **http://localhost:8501**. Press `Ctrl+C` to stop it; click **Rerun** (or press `R`) after editing code.
 
 ---
 
 ## Everyday use
 
-After the one-time setup, starting the system is just:
+After the one-time setup, starting the app is just:
 
 ```bash
 cd CultureWatch
 conda activate CultureWatch
-streamlit run app.py
+python -m uvicorn api.main:app --port 8000
 ```
 
-Run `python run_pipeline.py` first only if the data or the code that processes it has changed.
+and opening http://localhost:8000.
+
+Only when something changed:
+
+| You changed... | Run first |
+|---|---|
+| the raw data or the processing rules | `python run_pipeline.py` |
+| code in `web/` (or pulled new web code) | `cd web && npm install && npm run build && cd ..` |
+| `environment.yml` | `conda env update -f environment.yml --prune` |
+
+### Working on the web app (live reload)
+
+While changing web code, use two terminals instead, so the page updates as you save:
+
+```bash
+# terminal 1: the API, reloading when Python files change
+python -m uvicorn api.main:app --reload --port 8000
+
+# terminal 2: the web app in development mode
+cd web
+npm run dev
+```
+
+Open **http://localhost:5173**. Development mode is slower than the built app (React deliberately sends each request twice to catch bugs), so **demo from http://localhost:8000**, after `npm run build`. The API's own documentation is at http://localhost:8000/docs.
+
+### Before a demo
+
+1. Build the latest version: `cd web && npm run build && cd ..`, then start the app (Step 8).
+2. Press **Replay a past outbreak** once. Each replayed week is calculated the first time and remembered after that, so the second run in front of the jury is fast.
+3. To show the import live: `python make_demo_batch.py` prepares real data cut at 23 Feb 2026 (see [web/README.md](web/README.md)). Press **Restore original dataset** afterwards.
+
+### Share it on phones
+
+The app on port 8000 can be opened from any device through a temporary public link:
+
+```bash
+cloudflared tunnel --url http://localhost:8000       # prints a public https://….trycloudflare.com link
+```
+
+Open the printed link on any device. It works only while the app and the tunnel run, and changes every time the tunnel restarts. Anyone with the link can view the app, but importing data only works on the computer running it. (Install cloudflared: `winget install Cloudflare.cloudflared` or `brew install cloudflared`. The **Share / Jaa** QR button is hidden for now; set `SHOW_SHARE = true` in `web/src/App.tsx` to bring it back.)
+
+---
+
+## What you get
+
+Two ways to look at the same numbers:
+
+- **The web app** (`web/`, Finnish and English), built around the people who use it: ward staff, the infection unit and lab scientists. Every feature is listed below.
+- **The Streamlit app** (`app.py`), the team's analysis prototype with six views (table further down).
+
+### Web app: every feature in plain words
+
+The tabs are grouped by who uses them: **My ward** (ward staff), **Infection control** (the infection unit), **Lab** (lab scientists) and **Analysis** (everyone writing guidelines). **Import** and **Methods** sit on the right of the tab bar.
+
+| Where | Feature | What it does for you |
+|---|---|---|
+| **My ward** | Own-ward view | Opens on your own ward. A short summary in everyday words, then: anything unusual **in the last 4 weeks** (alerts), and is resistance **worse than last year or than the rest of the hospital** (signals). |
+| **Infection control** | Findings | The infection unit's daily to-do list: every new resistant bacterium (MRSA, ESBL, VRE, CPE), whether the patient is a **new or known carrier**, where the patient was before, and tick-boxes for who has been told. Searchable, export as a line list. |
+| | Alerts | All wards at once: which have more cases than normal right now, plus every past alert. |
+| | Spread | **Where new carriers had been in the 30 days before their finding**, as a flow chart from ward to ward. Each ward has its own colour; hover a ward or band to highlight its flows. A lead for infection control, not proof of transmission. |
+| | Weekly summary | One printable page for the infection unit: wards on alert, new resistant findings and results to check from the last 7 days. |
+| **Lab** | Result checks | The checks a lab scientist does before releasing results, run on every isolate (EUCAST rules): results that contradict each other, results that are biologically impossible, and unusual resistance that needs a confirmation test. Searchable. |
+| **Analysis** | Hospital | The big picture: totals, ward hotspots, resistance **by the patient's home area**, hospital vs outpatient resistance. |
+| | Antibiogram | Colour table: how often each antibiotic fails against each bacterium. Download as CSV or **print / save as PDF** as a one-page cumulative antibiogram. |
+| | Treatment guide | For an infection type, which antibiotic would have worked for most past patients. |
+| | Trends | Is resistance rising? The chart comes first; below it the **guideline expiry date**: when a common antibiotic crosses the 20% line where doctors stop starting it before the lab result. |
+| Top right | Import | Upload new lab results as CSV files. Every file is checked first (the pipeline's 16 checks and the result checks); nothing changes unless all checks pass, and the original data can always be restored. |
+| | Methods | Every rule and calculation, written out, plus how a resistant finding is handled. |
+| Top bar | **Historical replay** | Rewind to any week and press Play: the whole app shows what it would have shown that day. **Replay a past outbreak** on the start page opens the clearest outbreak in the data (ICU, MRSA, March 2026) and plays until the alert fires. |
+| | FI / EN | The whole app in Finnish and English, with Finnish number and date formats. |
+| | Logo | Back to the start page. |
+| Everywhere | Tables for real volumes | Every table shows 25 rows per page; sorting and search work across all rows. Filters beyond time and specimen sit behind **More filters**. Works on phones. |
+| | Verified numbers | `verify_numbers.py` recomputes the numbers from the raw files with separate code and compares them with the app (31/31 match), including spread, home areas and the weekly summary. |
+
+The **Share / Jaa** QR code is built in but hidden for now (`SHOW_SHARE` in `web/src/App.tsx`).
+
+How to run it: see [Quick start](#quick-start) above. A plain-language guide to the web app is in [web/README.md](web/README.md).
+
+### Streamlit app: six views
+
+| View | What it answers |
+|---|---|
+| **Overview** | Headline numbers: isolates, ESBL %, MRSA %, VRE/CPE cases, biggest changes vs last year |
+| **Antibiogram** | How often each bacterium is resistant to each antibiotic (colour-coded table) |
+| **Treatment Guide** | Which antibiotic is most likely to work for an infection scenario, e.g. "cystitis in a woman" |
+| **Hospital & Wards** | Is resistance higher in hospital than in the community? Which wards are hotspots? |
+| **Trends & Alerts** | Is resistance rising over time? Are there unusual clusters of MRSA or ESBL on a ward? |
+| **Methods** | The rules and definitions behind every number |
+
+All views share a filter bar: period, specimen (urine/blood/wound), setting, ward, sex and age group.
 
 ---
 
@@ -304,12 +375,12 @@ The environment isn't active. Run `conda activate CultureWatch`. If it still fai
 The pipeline hasn't been run yet, or you're in the wrong folder. Make sure you're inside `CultureWatch`, then run `python run_pipeline.py`.
 
 **`FileNotFoundError: ... synthetic_microbiology_dataset/...`**
-The dataset is missing or in the wrong place. See Step 3.
+The dataset is missing or in the wrong place. See Step 4.
 
 **`PIPELINE STOPPED ... DataValidationError`**
 The raw data failed a quality check. The message lists which checks failed. Fix or replace the raw files and run again.
 
-**`CondaValueError: prefix already exists`** (during Step 4)
+**`CondaValueError: prefix already exists`** (during Step 5)
 The environment already exists. Update it instead: `conda env update -f environment.yml --prune`.
 
 **Streamlit error about `width="stretch"`**
@@ -320,6 +391,21 @@ Another app is running. Stop it with `Ctrl+C` in its terminal, or start on anoth
 
 **Code changes don't show up**
 In the app, click **Rerun**. In JupyterLab, restart the kernel (Kernel → Restart Kernel), because imported files are only read once per session.
+
+**`No module named 'pandas'` when starting the API**
+You ran plain `uvicorn`, which used another Python installation. Run `python -m uvicorn api.main:app --port 8000` with the environment active.
+
+**http://localhost:8000 says `{"detail":"Not Found"}`**
+The web app hasn't been built. Run `cd web && npm run build && cd ..`, then restart the API.
+
+**Every page says "Cannot reach the API"**
+The API isn't running (start it, Step 8). In development mode (port 5173), stop `npm run dev` with `Ctrl+C` and start it again: it forwards requests to the API only if it was started with `web/vite.config.ts` in place.
+
+**`npm: command not found`, or `npm run build` complains about the Node version**
+Install or update Node.js (Step 2), then close and reopen the terminal.
+
+**Port 8000 already in use**
+The app is already running in another terminal. Use that one, or stop it with `Ctrl+C`.
 
 **Mac: everything is slow**
 You may have installed the Intel version of Miniforge on an Apple Silicon Mac. Run `conda info`; the platform line should say `osx-arm64`. If it says `osx-64`, uninstall and reinstall using the Apple Silicon link.
@@ -353,6 +439,7 @@ git pull
 conda activate CultureWatch
 conda env update -f environment.yml --prune
 python run_pipeline.py
+cd web && npm install && npm run build && cd ..
 ```
 
 ## Uninstalling
@@ -361,6 +448,8 @@ Remove just this environment:
 ```bash
 conda env remove -n CultureWatch
 ```
+
+The web app's libraries live only inside the project (`web/node_modules/`), so deleting the `CultureWatch` folder removes them too. Node.js itself is uninstalled like any other program.
 
 Remove Miniforge completely (Mac/Linux):
 ```bash
