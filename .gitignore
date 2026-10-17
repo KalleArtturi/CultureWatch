@@ -62,3 +62,7 @@ synthetic_micr*/
 # *.csv
 # *.parquet
 tyks_data/
+
+# Web app build files (also ignored when web/.gitignore is missing on a branch)
+node_modules/
+*.tsbuildinfo
