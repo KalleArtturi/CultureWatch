@@ -67,6 +67,10 @@ cloudflared tunnel --url http://localhost:8000       # prints a public https://â
 
 Open the printed link on the laptop and press **Share / Jaa** to show a QR code that opens the same page on any phone. The link works only while both commands run, and changes every time the tunnel restarts. (Install cloudflared: `winget install Cloudflare.cloudflared` or `brew install cloudflared`.)
 
+#### Check the numbers
+
+With the API running, `python verify_numbers.py` recomputes the headline numbers straight from the raw CSV files with its own, independent code and compares them with what the app serves. It prints OK/FAIL per number and exits with an error if anything differs.
+
 ---
 
 ## Full setup guide (from zero)

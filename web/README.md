@@ -83,7 +83,9 @@ cd web && npm install && npm run dev       # terminal 2: the web app
 
 Open http://localhost:5173. To share it on phones, see *Share it on phones* in the main README.
 
-**Try the import:** `python make_demo_batch.py` creates two more weeks of made-up results in `data/demo_batch/`, including a small planted MRSA outbreak on Surgery. On the **Import** tab, choose those four files, press *Check files*, then *Import*: the app reloads and Surgery shows an alert. *Restore original dataset* undoes it. Import only works on the computer running the app, never through the public link.
+**Try the import (real data only):** `python make_demo_batch.py` cuts the real dataset at a date: `data/demo_batch/base/` holds everything before 23 Feb 2026 and `data/demo_batch/batch/` the real two weeks up to 8 Mar 2026, when the ICU MRSA cluster appears. On the **Import** tab, first *Replace all data* with the four `base` files, then *Add new results* with the three `batch` files: the ICU alert fires, exactly as in the real data. *Restore original dataset* brings back the full data. Import only works on the computer running the app, never through the public link.
+
+**Check the numbers:** with the API running, `python verify_numbers.py` recomputes the headline numbers straight from the raw CSV files with its own, separate code and compares them with what the app shows (prints OK/FAIL per number).
 
 ---
 

@@ -31,46 +31,65 @@ Setting = Literal["community", "inpatient", "hospital_onset"]
 
 
 # ---------- Data (loaded once per process) ----------
+class Data(NamedTuple):
+    ast: pd.DataFrame      # susceptibility rows, first isolates per surveillance year (preprocess.py rule)
+    iso: pd.DataFrame      # isolates, first isolates per surveillance year
+    ast_all: pd.DataFrame  # every susceptibility row: rolling windows apply the first-isolate rule themselves
+    iso_all: pd.DataFrame  # every isolate (also carrier history)
+    wards: pd.DataFrame
+    abx: pd.DataFrame
+
+
 @lru_cache(maxsize=1)
-def data():
-    ast = cw.load_ast()
-    iso = ht.load_isolates()
-    iso["age_group"] = pd.cut(iso.age_years, cw.AGE_BINS, right=False, labels=cw.AGE_LABELS)
+def data() -> Data:
+    ast_all = cw.load_ast(first_only=False)
+    iso_all = ht.load_all_isolates()
+    iso_all["age_group"] = pd.cut(iso_all.age_years, cw.AGE_BINS, right=False, labels=cw.AGE_LABELS)
     wards = pd.read_csv(importer.raw_dir() / "wards.csv")  # code lists follow an applied import
     abx = pd.read_csv(importer.raw_dir() / "antibiotics.csv")
-    return ast, iso, wards, abx
+    return Data(ast_all[ast_all.first_isolate].copy(), iso_all[iso_all.first_isolate].copy(), ast_all, iso_all, wards, abx)
 
 
 def latest():
-    return data()[0].sample_date.max()
+    return data().ast.sample_date.max()
 
 
 # ---------- Time machine: the data as it looked on a given day ----------
 class Snap(NamedTuple):
     ast: pd.DataFrame
     iso: pd.DataFrame
+    ast_all: pd.DataFrame
+    iso_all: pd.DataFrame
     latest: pd.Timestamp
 
 
-@lru_cache(maxsize=16)
+@lru_cache(maxsize=6)
 def _snapshot(as_of: str):
-    ast, iso, _, _ = data()
-    end = pd.Timestamp(as_of)
+    d, end = data(), pd.Timestamp(as_of)
     # Safe to cut: the first-isolate flag only depends on earlier samples, never later ones.
-    return ast[ast.sample_date <= end], iso[iso.sample_date <= end]
+    return tuple(df[df.sample_date <= end] for df in (d.ast, d.iso, d.ast_all, d.iso_all))
 
 
 def snap(as_of: date | None = None) -> Snap:
     """Shared dependency. With ?as_of=YYYY-MM-DD every endpoint sees only samples up to that day,
     so rolling windows, baselines and alerts are exactly what the app would have shown then."""
+    d = data()
     if as_of is None:
-        ast, iso, _, _ = data()
-        return Snap(ast, iso, latest())
-    lo, hi = data()[0].sample_date.min().date(), latest().date()
+        return Snap(d.ast, d.iso, d.ast_all, d.iso_all, latest())
+    lo, hi = d.ast.sample_date.min().date(), latest().date()
     if not lo <= as_of <= hi:
         raise HTTPException(422, f"as_of must be between {lo} and {hi}")
-    ast, iso = _snapshot(as_of.isoformat())
-    return Snap(ast, iso, pd.Timestamp(as_of))
+    return Snap(*_snapshot(as_of.isoformat()), pd.Timestamp(as_of))
+
+
+def select(s: Snap, kind: Literal["ast", "iso"], f: dict) -> pd.DataFrame:
+    """Rows for the filters f. In a rolling window (date_from/date_to) the first-isolate rule is applied within
+    the window (CLSI M39), so each patient's organism counts once in it; otherwise it is the per-surveillance-year
+    rule from preprocess.py."""
+    if f.get("date_from") is not None:
+        rest = {k: v for k, v in f.items() if k not in ("date_from", "date_to")}
+        return cw.window_view(s.ast_all if kind == "ast" else s.iso_all, f["date_from"], f["date_to"], **rest)
+    return cw.apply_filters(s.ast if kind == "ast" else s.iso, **f)
 
 
 def records(df):
@@ -108,7 +127,8 @@ def phenotype_rate(iso, phenotype):
 @app.get("/api/meta")
 def meta():
     """Everything the UI needs to build its filter controls and labels."""
-    ast, _, wards, abx = data()
+    d = data()
+    ast, wards, abx = d.ast, d.wards, d.abx
     end = latest()
     return dict(
         wards=records(wards),
@@ -132,11 +152,6 @@ def meta():
 
 
 @lru_cache(maxsize=1)
-def all_isolates():
-    return ht.load_all_isolates()
-
-
-@lru_cache(maxsize=1)
 def ward_visits():
     return ht.load_ward_visits(importer.raw_dir() / "cultures.csv")
 
@@ -150,11 +165,11 @@ def findings(days: int = 7, phenotype: Literal["esbl", "mrsa", "vre", "cpe"] | N
         raise HTTPException(422, "days must be between 1 and 366")
     end = s.latest
     start = end - pd.Timedelta(days=days - 1)
-    f = ht.carrier_findings(all_isolates(), start, end, phenotypes=[phenotype] if phenotype else PHENOTYPES)
+    f = ht.carrier_findings(data().iso_all, start, end, phenotypes=[phenotype] if phenotype else PHENOTYPES)
     if ward:
         f = f[f.ward_code == ward]
     f = ht.add_recent_wards(f, ward_visits()[lambda v: v.sample_date <= end])
-    data_start = data()[0].sample_date.min()
+    data_start = data().ast.sample_date.min()
     return dict(start=start.date().isoformat(), end=end.date().isoformat(),
                 history_complete=bool((start - data_start).days >= ht.CARRIER_MEMORY_DAYS),
                 findings=records(f.assign(sample_date=f.sample_date.dt.date.astype(str),
@@ -165,7 +180,7 @@ def findings(days: int = 7, phenotype: Literal["esbl", "mrsa", "vre", "cpe"] | N
 def alert_timeline():
     """Every cluster alert ever raised (all phenotypes, all wards), for the time machine's markers.
     Uses all data on purpose: the timeline is the answer key the replay walks through."""
-    iso = data()[1]
+    iso = data().iso
     rows = []
     for ph in PHENOTYPES:
         a = ht.detect_clusters(ht.weekly_counts(iso, ph))
@@ -176,8 +191,8 @@ def alert_timeline():
 
 @app.get("/api/overview")
 def overview(f: dict = Depends(filter_params), s: Snap = Depends(snap)):
-    ast, iso = s.ast, s.iso
-    f_iso = cw.apply_filters(iso, **f)
+    ast = s.ast
+    f_iso = select(s, "iso", f)
     kpis = dict(first_isolates=len(f_iso), esbl=phenotype_rate(f_iso, "esbl"), mrsa=phenotype_rate(f_iso, "mrsa"),
                 vre_cases=int(f_iso.vre.sum()), cpe_cases=int(f_iso.cpe.sum()))
     mix = f_iso.organism.value_counts().rename_axis("organism").reset_index(name="n")
@@ -203,8 +218,7 @@ def overview(f: dict = Depends(filter_params), s: Snap = Depends(snap)):
 
 @app.get("/api/antibiogram")
 def antibiogram(f: dict = Depends(filter_params), s: Snap = Depends(snap)):
-    ast = s.ast
-    t = cw.resistance_table(cw.apply_filters(ast, **f))
+    t = cw.resistance_table(select(s, "ast", f))
     t["pct_resistant"] = t.pct_resistant.where(t.reportable)
     t[["ci_low", "ci_high"]] = t[["ci_low", "ci_high"]].where(t.reportable, axis=0)
     cols = [a for a in ab.AB_ORDER if a in set(t.antibiotic_code)]
@@ -216,15 +230,14 @@ def antibiogram(f: dict = Depends(filter_params), s: Snap = Depends(snap)):
 def treatment(scenario: str, target: float | None = None, f: dict = Depends(filter_params),
               s: Snap = Depends(snap)):
     """Coverage per regimen for a preset scenario, or scenario='custom' to use the shared filters."""
-    ast = s.ast
     preset = tg.SCENARIOS.get(scenario)
     if preset is None and scenario != "custom":
         raise HTTPException(404, f"Unknown scenario {scenario!r}")
     target = target if target is not None else (preset["target"] if preset else 0.85)
-    s_filters = preset["filters"] if preset else f
-    cov = tg.coverage_table(ast, target=target, **s_filters)
+    rows = select(s, "ast", preset["filters"] if preset else f)
+    cov = tg.coverage_table(rows, target=target)
     n = int(cov.n_isolates.iloc[0]) if len(cov) else 0
-    mix = tg.organism_mix(ast, **s_filters).rename_axis("organism").reset_index()
+    mix = tg.organism_mix(rows).rename_axis("organism").reset_index()
     pick = tg.recommend(cov) if n >= cw.MIN_ISOLATES else None
     return dict(scenario=scenario, target=target, n_isolates=n, reportable=n >= cw.MIN_ISOLATES,
                 recommended=pick, single=records(cov[cov.n_drugs == 1]),
@@ -233,13 +246,12 @@ def treatment(scenario: str, target: float | None = None, f: dict = Depends(filt
 
 @app.get("/api/hospital-vs-community")
 def hospital_vs_community(f: dict = Depends(filter_params), s: Snap = Depends(snap)):
-    return records(ht.compare_settings(s.ast, **without(f, "setting")))
+    return records(ht.compare_settings(select(s, "ast", without(f, "setting"))))
 
 
 @app.get("/api/ward-profile")
 def ward_profile(f: dict = Depends(filter_params), s: Snap = Depends(snap)):
-    iso = s.iso
-    wp = ht.ward_profile(cw.apply_filters(iso, **without(f, "ward", "setting")))
+    wp = ht.ward_profile(select(s, "iso", without(f, "ward", "setting")))
     return records(wp.reset_index())
 
 
@@ -286,7 +298,7 @@ def alerts(phenotype: Literal["esbl", "mrsa", "vre", "cpe"] = "mrsa", specimen: 
 @app.get("/api/ward/{code}")
 def ward_view(code: str, specimen: str | None = None, s: Snap = Depends(snap)):
     """Own-ward page: last 4 weeks vs the ward's normal, rolling 12 months vs the year before and vs all sites."""
-    ast, iso, wards = s.ast, s.iso, data()[2]
+    wards = data().wards
     if code not in set(wards.ward_code):
         raise HTTPException(404, f"Unknown ward {code!r}")
     end = s.latest
@@ -294,7 +306,7 @@ def ward_view(code: str, specimen: str | None = None, s: Snap = Depends(snap)):
     w4 = cw.window_dates(end, "4w")
 
     # --- Last 4 weeks: new cases per phenotype vs this ward's previous 52 weeks (same test as alerts)
-    s_iso = cw.apply_filters(iso, specimen=specimen)
+    s_iso = cw.apply_filters(s.iso, specimen=specimen)  # alert counts: first isolates per year (new cases)
     four_weeks = []
     for ph in PHENOTYPES:
         counts = ht.weekly_counts(s_iso, ph)
@@ -313,10 +325,10 @@ def ward_view(code: str, specimen: str | None = None, s: Snap = Depends(snap)):
     def rates(df):
         return {ph: phenotype_rate(df, ph) for ph in PHENOTYPE_BASE}
 
-    ward_12 = cw.apply_filters(s_iso, ward=code, date_from=w12[0], date_to=w12[1])
+    ward_12 = cw.window_view(s.iso_all, *w12, specimen=specimen, ward=code)
     rates_12 = dict(ward=rates(ward_12),
-                    ward_prev=rates(cw.apply_filters(s_iso, ward=code, date_from=prev12[0], date_to=prev12[1])),
-                    all_sites=rates(cw.apply_filters(s_iso, date_from=w12[0], date_to=w12[1])))
+                    ward_prev=rates(cw.window_view(s.iso_all, *prev12, specimen=specimen, ward=code)),
+                    all_sites=rates(cw.window_view(s.iso_all, *w12, specimen=specimen)))
     # Annual anomaly tests (only where both sides pass the 30-isolate rule):
     # p_change = ward vs its previous 12 months, p_above = ward above the all-sites rate
     tests = {}
@@ -328,7 +340,7 @@ def ward_view(code: str, specimen: str | None = None, s: Snap = Depends(snap)):
     rates_12["tests"] = tests
 
     def rt(**kw):
-        return cw.resistance_table(cw.apply_filters(ast, specimen=specimen, **kw)).set_index(
+        return cw.resistance_table(select(s, "ast", dict(specimen=specimen, **kw))).set_index(
             ["organism", "antibiotic_code"])
 
     cur, prev = rt(ward=code, date_from=w12[0], date_to=w12[1]), rt(ward=code, date_from=prev12[0], date_to=prev12[1])
@@ -373,7 +385,7 @@ def local_only(request: Request):
 
 
 def reload_data():
-    for cached in (data, _snapshot, all_isolates, ward_visits):
+    for cached in (data, _snapshot, ward_visits):
         cached.cache_clear()
 
 

@@ -63,6 +63,21 @@ def apply_filters(df, period=None, specimen=None, setting=None, ward=None, sex=N
     return df
 
 
+def first_isolates_in(df):
+    """First-isolate rule applied within the rows given (CLSI M39: first isolate per patient, organism and
+    specimen type in the analysis period). Works on isolate-level and susceptibility-level tables."""
+    first = (df.sort_values(["sample_date", "isolate_id"])
+               .drop_duplicates(["patient_id", "organism", "specimen"]).isolate_id)
+    return df[df.isolate_id.isin(first)]
+
+
+def window_view(df_all, date_from, date_to, **filters):
+    """Rows for a rolling window from a table of ALL isolates: cut to the window, apply the first-isolate rule
+    within the window (so each patient's organism counts once in it), then apply the other filters."""
+    d = df_all[(df_all.sample_date >= pd.Timestamp(date_from)) & (df_all.sample_date <= pd.Timestamp(date_to))]
+    return apply_filters(first_isolates_in(d), **filters)
+
+
 def wilson_ci(r, n, z=1.96):
     """95% Wilson confidence interval for a proportion (works well for small n and 0%/100%)."""
     r, n = np.asarray(r, float), np.asarray(n, float)

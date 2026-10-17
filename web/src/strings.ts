@@ -331,7 +331,8 @@ const en = {
     items: (dates: string, maxDate: string, n: number) => [
       ['Data', `fully synthetic microbiology dataset, 10,000 patients, 46,792 cultures, ${dates}.`],
       ['First isolate rule', 'first isolate per patient, organism, specimen type and 12-month surveillance year (Oct–Sep).'],
-      ['Rolling windows', `"Last 4 weeks" and "Last 12 months" end at the latest sample date (${maxDate}). The first-isolate rule still uses surveillance years, so a 12-month window that spans two years can count a patient's organism twice.`],
+      ['Rolling windows', `"Last 4 weeks" and "Last 12 months" end at the latest sample date (${maxDate}). Within a rolling window the first-isolate rule is applied to the window itself, so each patient's organism counts once in it (CLSI M39).`],
+      ['Verified', 'verify_numbers.py recomputes the headline numbers straight from the raw files with separate code and compares them with what the app shows.'],
       [`Minimum ${n}`, `a % is shown only with at least ${n} isolates; otherwise "n<${n}".`],
       ['Intrinsic resistance (IR)', 'Klebsiella and Citrobacter – ampicillin; Proteus mirabilis – nitrofurantoin. Not shown as a %.'],
       ['Hospital-onset', 'sample taken on day 3 or later of the hospital stay. Community: outpatients (health centres, emergency department).'],
@@ -677,7 +678,8 @@ const fi: Strings = {
     items: (dates: string, maxDate: string, n: number) => [
       ['Aineisto', `täysin synteettinen mikrobiologinen aineisto, 10 000 potilasta, 46 792 viljelynäytettä, ${dates}.`],
       ['Ensimmäisen isolaatin sääntö', 'ensimmäinen isolaatti per potilas, mikrobi, näytetyyppi ja 12 kuukauden seurantavuosi (loka–syys).'],
-      ['Liukuvat jaksot', `"Viimeiset 4 viikkoa" ja "Viimeiset 12 kk" päättyvät viimeisimpään näytepäivään (${maxDate}). Ensimmäisen isolaatin sääntö käyttää edelleen seurantavuosia, joten kahden vuoden rajan ylittävä 12 kuukauden jakso voi laskea saman potilaan mikrobin kahdesti.`],
+      ['Liukuvat jaksot', `"Viimeiset 4 viikkoa" ja "Viimeiset 12 kk" päättyvät viimeisimpään näytepäivään (${maxDate}). Liukuvassa jaksossa ensimmäisen isolaatin sääntöä sovelletaan itse jaksoon, joten potilaan mikrobi lasketaan siinä kerran (CLSI M39).`],
+      ['Tarkistettu', 'verify_numbers.py laskee keskeiset luvut suoraan raakatiedostoista erillisellä koodilla ja vertaa niitä sovelluksen näyttämiin.'],
       [`Vähintään ${n}`, `prosentti näytetään vain, kun isolaatteja on vähintään ${n}; muuten "n<${n}".`],
       ['Luontainen resistenssi (IR)', 'Klebsiella ja Citrobacter – ampisilliini; Proteus mirabilis – nitrofurantoiini. Ei näytetä prosenttina.'],
       ['Sairaalasyntyinen', 'näyte otettu hoitojakson 3. päivänä tai myöhemmin. Avohoito: avohoidon potilaat (terveysasemat, päivystys).'],
