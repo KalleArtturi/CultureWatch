@@ -45,9 +45,10 @@ export function App() {
   setFormatLang(lang) // formatters (numbers, dates) follow the language on this render
   const t = STRINGS[lang]
   const meta = useApi<Meta>('/api/meta')
-  const timeline = useApi<TimelineAlert[]>('/api/alert-timeline', {}, { live: true })
-  const helpers = useMemo(() => (meta.data ? makeMetaHelpers(meta.data, lang) : null), [meta.data, lang])
   const [route, setRoute] = useState<Route>(readRoute)
+  // Only the start page's replay button needs the alert list.
+  const timeline = useApi<TimelineAlert[]>(route === 'ward' ? '/api/alert-timeline' : null, {}, { live: true })
+  const helpers = useMemo(() => (meta.data ? makeMetaHelpers(meta.data, lang) : null), [meta.data, lang])
   const [myWard, setMyWardState] = useState<string | null>(loadMyWard)
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
   const [asOf, setAsOf] = useState<string | null>(null)

@@ -267,6 +267,7 @@ def weekly(s: Snap = Depends(snap)):
 
 
 @app.get("/api/alert-timeline")
+@lru_cache(maxsize=1)
 def alert_timeline():
     """Every cluster alert ever raised (all phenotypes, all wards), for the time machine's markers.
     Uses all data on purpose: the timeline is the answer key the replay walks through."""
@@ -491,7 +492,7 @@ def local_only(request: Request):
 
 
 def reload_data():
-    for cached in (data, _snapshot, ward_visits, checks_all, _ward_view):
+    for cached in (data, _snapshot, ward_visits, checks_all, _ward_view, alert_timeline):
         cached.cache_clear()
 
 

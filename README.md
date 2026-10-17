@@ -180,7 +180,7 @@ conda config --set channel_priority strict
 conda env create -f environment.yml
 ```
 
-This installs Python 3.11, pandas, numpy, scipy, scikit-learn, matplotlib, JupyterLab, Streamlit, FastAPI and Uvicorn into an environment called `CultureWatch`. It takes a few minutes.
+This installs Python 3.11, pandas, numpy, scipy, matplotlib, JupyterLab, Streamlit, FastAPI and Uvicorn into an environment called `CultureWatch`. It takes a few minutes.
 
 ### Step 5: Activate the environment
 

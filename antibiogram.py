@@ -1,9 +1,7 @@
 """Task 2: Antibiogram - resistance % per organism x antibiotic, with display rules."""
-from pathlib import Path
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 import numpy as np
-import pandas as pd
 import cw_utils as cw
 
 # Column order: grouped by antibiotic class, urine-only agents last

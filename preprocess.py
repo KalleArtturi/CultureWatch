@@ -1,7 +1,6 @@
 """Pipeline step 1: raw CSVs -> validated, joined, first-isolate tables in processed/.
 Same logic as the preprocessing notebook, as a script that stops on bad data.
 Run:  python preprocess.py"""
-from pathlib import Path
 import pandas as pd
 import cw_utils as cw
 

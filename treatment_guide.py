@@ -10,7 +10,6 @@ so the organism mix is built in automatically.
 - Scenarios with fewer than 30 isolates get no recommendation (same rule as the antibiogram).
 """
 from itertools import combinations
-from pathlib import Path
 import pandas as pd
 import cw_utils as cw
 
