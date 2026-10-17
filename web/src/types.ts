@@ -350,3 +350,22 @@ export interface WardResp {
     pairs: WardPair[]
   }
 }
+
+export interface SpreadResp {
+  start: string
+  end: string
+  new_carriers: number
+  moved: number
+  movements: { from_ward: string; to_ward: string; phenotype: Phenotype; patients: number }[]
+}
+
+export interface HomeAreaRow { home_area: string; first_isolates: number; esbl: Rate; mrsa: Rate; vre_cases: number; cpe_cases: number }
+
+export interface WeeklyResp {
+  start: string
+  end: string
+  findings: Finding[]
+  alerts: { ward_code: string; phenotype: Phenotype; observed: number; expected: number; p_value: number }[]
+  checks: { checked: number; contradiction: number; impossible: number; confirm: number }
+  checks_flagged: { isolate_id: string; patient_id: string; sample_date: string; ward_code: string; organism: string; rule: string; category: string; antibiotic_code: string; result: string | null }[]
+}

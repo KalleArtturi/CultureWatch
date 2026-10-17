@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useApi } from '../api'
+import { useApi, useInflight } from '../api'
 import { date, PHENOTYPE_LABEL } from '../format'
 import { useMeta, useT } from '../state'
 import type { TimelineAlert } from '../types'
@@ -24,6 +24,7 @@ export function TimeMachine({ asOf, setAsOf, myWard, onExit, autoPlay = false }:
   const weeks = meta.replay_weeks
   const timeline = useApi<TimelineAlert[]>('/api/alert-timeline', {}, { live: true })
   const [playing, setPlaying] = useState(false)
+  const busy = useInflight() > 0
   const positioned = useRef(false)
   const idx = Math.max(0, weeks.indexOf(asOf))
 
@@ -47,16 +48,18 @@ export function TimeMachine({ asOf, setAsOf, myWard, onExit, autoPlay = false }:
     if (autoPlay) setPlaying(true)
   }, [timeline.data])
 
+  // Step only once the current week has finished loading, so every week is actually shown.
   useEffect(() => {
     if (!playing) return
     if (idx >= weeks.length - 1) { setPlaying(false); return }
+    if (busy) return
     const t = setTimeout(() => {
       const next = weeks[idx + 1]
       setAsOf(next)
       if ((byWeek.get(next) ?? []).some(relevant)) setPlaying(false)
     }, STEP_MS)
     return () => clearTimeout(t)
-  }, [playing, idx])
+  }, [playing, idx, busy])
 
   const go = (i: number) => { setPlaying(false); setAsOf(weeks[Math.max(0, Math.min(weeks.length - 1, i))]) }
   const nextAlert = mine.find(a => weeks.indexOf(a.week_end) > idx)

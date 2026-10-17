@@ -9,11 +9,10 @@ import type { CheckCategory, ChecksResp } from '../types'
 const CATEGORIES: CheckCategory[] = ['contradiction', 'impossible', 'confirm']
 
 export function ChecksView() {
-  const { meta, wardName, specimenName } = useMeta()
+  const { wardName, specimenName } = useMeta()
   const { t } = useT()
   const [period, setPeriod] = useState<'4w' | '12m' | ''>('12m')
-  const [ward, setWard] = useState('')
-  const { data, error, loading } = useApi<ChecksResp>('/api/checks', { window: period, ward })
+  const { data, error, loading } = useApi<ChecksResp>('/api/checks', { window: period })
 
   if (error) return <p className="error">{error}</p>
   if (!data) return <p className="muted">{t.app.loading}</p>
@@ -46,13 +45,6 @@ export function ChecksView() {
             <button type="button" aria-pressed={period === ''} onClick={() => setPeriod('')}>{t.filters.allTime}</button>
           </div>
         </div>
-        <label className="field">
-          <span>{t.common.ward}</span>
-          <select value={ward} onChange={e => setWard(e.target.value)}>
-            <option value="">{t.filters.all}</option>
-            {meta.wards.map(w => <option key={w.ward_code} value={w.ward_code}>{wardName(w.ward_code)}</option>)}
-          </select>
-        </label>
         <span className="ignored-note">{dateRange([data.start, data.end])}</span>
       </div>
 

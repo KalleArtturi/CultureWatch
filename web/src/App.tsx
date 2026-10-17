@@ -7,7 +7,7 @@ import {
   DEFAULT_FILTERS, LangContext, loadLang, loadMyWard, makeMetaHelpers, MetaContext, saveLang, saveMyWard, useT, type Filters,
 } from './state'
 import { STRINGS, type Lang } from './strings'
-import type { Meta, Ward } from './types'
+import type { Meta, TimelineAlert, Ward } from './types'
 import { AlertsView } from './views/AlertsView'
 import { AntibiogramView } from './views/AntibiogramView'
 import { ChecksView } from './views/ChecksView'
@@ -15,20 +15,22 @@ import { FindingsView } from './views/FindingsView'
 import { HospitalView } from './views/HospitalView'
 import { ImportView } from './views/ImportView'
 import { MethodsView } from './views/MethodsView'
+import { SpreadView } from './views/SpreadView'
 import { TreatmentView } from './views/TreatmentView'
 import { TrendsView } from './views/TrendsView'
 import { WardView } from './views/WardView'
+import { WeeklyView } from './views/WeeklyView'
 
 // Share / QR button is hidden for now; set to true to bring it back.
 const SHOW_SHARE = false
 
-const ROUTES = ['ward', 'findings', 'checks', 'alerts', 'hospital', 'antibiogram', 'treatment', 'trends', 'data', 'methods'] as const
+const ROUTES = ['ward', 'findings', 'checks', 'alerts', 'spread', 'weekly', 'hospital', 'antibiogram', 'treatment', 'trends', 'data', 'methods'] as const
 type Route = (typeof ROUTES)[number]
 
 // Main tabs, grouped by who uses them; Import and Methods sit apart as small links.
 const GROUPS = [
   { id: 'ward', routes: ['ward'] },
-  { id: 'control', routes: ['findings', 'alerts'] },
+  { id: 'control', routes: ['findings', 'alerts', 'spread', 'weekly'] },
   { id: 'lab', routes: ['checks'] },
   { id: 'analysis', routes: ['hospital', 'antibiogram', 'treatment', 'trends'] },
 ] as const satisfies readonly { id: string; routes: readonly Route[] }[]
@@ -43,6 +45,7 @@ export function App() {
   setFormatLang(lang) // formatters (numbers, dates) follow the language on this render
   const t = STRINGS[lang]
   const meta = useApi<Meta>('/api/meta')
+  const timeline = useApi<TimelineAlert[]>('/api/alert-timeline', {}, { live: true })
   const helpers = useMemo(() => (meta.data ? makeMetaHelpers(meta.data, lang) : null), [meta.data, lang])
   const [route, setRoute] = useState<Route>(readRoute)
   const [myWard, setMyWardState] = useState<string | null>(loadMyWard)
@@ -81,6 +84,16 @@ export function App() {
   if (!helpers) return <main><p className="muted">{t.app.loading}</p></main>
   const known = myWard && helpers.meta.wards.some(w => w.ward_code === myWard) ? myWard : null
   const weeks = helpers.meta.replay_weeks
+  // Demo: replay your ward's latest alert; if it never had one, open the clearest outbreak in the data.
+  const startDemo = () => {
+    const all = timeline.data ?? []
+    if (!all.some(a => a.ward_code === known) && all.length) {
+      const strongest = all.reduce((a, b) => (b.p_value < a.p_value ? b : a))
+      setMyWard(strongest.ward_code)
+    }
+    setAutoPlay(true)
+    setAsOf(weeks[weeks.length - 1])
+  }
   const group = GROUPS.find(g => (g.routes as readonly Route[]).includes(route))
 
   return (
@@ -141,7 +154,7 @@ export function App() {
                   <span className="secondary">{t.demo.text}</span>
                 </div>
                 <button type="button" className="btn primary"
-                  onClick={() => { setAutoPlay(true); setAsOf(weeks[weeks.length - 1]) }}>
+                  onClick={startDemo}>
                   {t.demo.cta}
                 </button>
               </div>
@@ -152,6 +165,8 @@ export function App() {
             {route === 'findings' && <FindingsView />}
             {route === 'checks' && <ChecksView />}
             {route === 'alerts' && <AlertsView myWard={known} />}
+            {route === 'spread' && <SpreadView />}
+            {route === 'weekly' && <WeeklyView />}
             {route === 'hospital' && <HospitalView filters={filters} setFilters={setFilters} onOpenWard={c => { setMyWard(c); go('ward') }} />}
             {route === 'antibiogram' && <AntibiogramView filters={filters} setFilters={setFilters} />}
             {route === 'treatment' && <TreatmentView filters={filters} setFilters={setFilters} />}

@@ -1,7 +1,7 @@
 import { useApi } from '../api'
 import { FilterBar } from '../components/FilterBar'
 import { useTooltip } from '../components/Tooltip'
-import { csvCell, num, pct } from '../format'
+import { csvCell, date, num, pct } from '../format'
 import { filterParams, useMeta, useT, type Filters } from '../state'
 import type { AbCell, AntibiogramResp } from '../types'
 
@@ -18,7 +18,7 @@ function toCsv(d: AntibiogramResp, cell: (o: string, a: string) => AbCell | unde
 }
 
 export function AntibiogramView({ filters, setFilters }: { filters: Filters; setFilters: (f: Filters) => void }) {
-  const { meta, abLabel } = useMeta()
+  const { meta, abLabel, wardName, specimenName } = useMeta()
   const { t } = useT()
   const { data, error, loading } = useApi<AntibiogramResp>('/api/antibiogram', filterParams(filters))
   const tip = useTooltip()
@@ -26,6 +26,17 @@ export function AntibiogramView({ filters, setFilters }: { filters: Filters; set
   const cells = new Map((data?.cells ?? []).map(c => [`${c.organism}|${c.antibiotic_code}`, c]))
   const cell = (o: string, a: string) => cells.get(`${o}|${a}`)
   const urineOnly = new Set(meta.urine_only)
+
+  const timeLabel = filters.time === '4w' ? t.filters.last4w : filters.time === '12m' ? t.filters.last12m
+    : filters.time === 'all' ? t.filters.allTime : t.filters.year(filters.time)
+  const filterSummary = [
+    timeLabel,
+    filters.specimen && specimenName(filters.specimen),
+    filters.setting && t.filters.settings[filters.setting],
+    filters.ward && wardName(filters.ward),
+    filters.sex && (filters.sex === 'F' ? t.filters.female : t.filters.male),
+    filters.age_group,
+  ].filter(Boolean).join(' · ')
 
   const download = () => {
     if (!data) return
@@ -51,12 +62,16 @@ export function AntibiogramView({ filters, setFilters }: { filters: Filters; set
     !c ? '' : c.pct_resistant !== null ? num(c.pct_resistant * 100, 1) : c.intrinsic ? 'IR' : t.common.nLow(meta.min_isolates)
 
   return (
-    <div style={{ display: 'grid', gap: 16 }}>
-      <div className="view-head">
+    <div className="printable" style={{ display: 'grid', gap: 16 }}>
+      <div className="print-only">
+        <h1>{t.print.antibiogramTitle}</h1>
+        <p>{t.print.filters}: {filterSummary}</p>
+      </div>
+      <div className="view-head no-print">
         <h1>{t.abg.title}</h1>
         <span className="sub">{t.abg.sub}</span>
       </div>
-      <FilterBar filters={filters} onChange={setFilters} />
+      <div className="no-print"><FilterBar filters={filters} onChange={setFilters} /></div>
       {error && <p className="error">{error}</p>}
       {data && (
         <div className={`card${loading ? ' loading' : ''}`}>
@@ -68,7 +83,10 @@ export function AntibiogramView({ filters, setFilters }: { filters: Filters; set
               <span><span className="sw" style={{ background: 'var(--surface-2)' }} />{t.abg.grey(meta.min_isolates)}</span>
               <span>{t.abg.urineOnly}</span>
             </div>
-            <button type="button" className="btn" onClick={download}>{t.common.downloadCsv}</button>
+            <span className="no-print" style={{ display: 'inline-flex', gap: 8 }}>
+              <button type="button" className="btn" onClick={download}>{t.common.downloadCsv}</button>
+              <button type="button" className="btn" onClick={() => window.print()}>{t.print.button}</button>
+            </span>
           </div>
           {data.organisms.length === 0 ? <p className="muted">{t.abg.none}</p> : (
             <div className="table-wrap">
@@ -110,6 +128,7 @@ export function AntibiogramView({ filters, setFilters }: { filters: Filters; set
           {tip.node}
         </div>
       )}
+      <p className="print-only small">{t.print.generated(date(new Date().toISOString().slice(0, 10)))}</p>
     </div>
   )
 }

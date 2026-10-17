@@ -219,6 +219,53 @@ def checks(window: Window | None = None, ward: str | None = None, s: Snap = Depe
                                 .drop(columns=["flagged"])))
 
 
+@app.get("/api/spread")
+def spread(window: Literal["4w", "12m", "all"] = "12m", phenotype: Literal["esbl", "mrsa", "vre", "cpe"] | None = None,
+           s: Snap = Depends(snap)):
+    """Where new carriers had been in the 30 days before their finding: ward-to-ward movements in the period."""
+    end = s.latest
+    start = cw.window_dates(end, window)[0] if window != "all" else data().iso_all.sample_date.min()
+    f = ht.carrier_findings(data().iso_all, start, end, phenotypes=[phenotype] if phenotype else PHENOTYPES)
+    f = ht.add_recent_wards(f, ward_visits()[lambda v: v.sample_date <= end])
+    new = f[f.status == "new"]
+    return dict(start=pd.Timestamp(start).date().isoformat(), end=end.date().isoformat(),
+                new_carriers=int(new.patient_id.nunique()),
+                moved=int(new[new.recent_wards.str.len() > 0].patient_id.nunique()),
+                movements=records(ht.carrier_movements(f)))
+
+
+@app.get("/api/home-areas")
+def home_areas(f: dict = Depends(filter_params), s: Snap = Depends(snap)):
+    """Resistance by the patient's home area (first isolates), with the 30-isolate rule."""
+    iso = select(s, "iso", f)
+    out = []
+    for area, g in iso.groupby("home_area"):
+        out.append(dict(home_area=area, first_isolates=len(g), esbl=phenotype_rate(g, "esbl"),
+                        mrsa=phenotype_rate(g, "mrsa"), vre_cases=int(g.vre.sum()), cpe_cases=int(g.cpe.sum())))
+    return dict(areas=sorted(out, key=lambda r: -r["first_isolates"]))
+
+
+@app.get("/api/weekly")
+def weekly(s: Snap = Depends(snap)):
+    """One-page summary of the latest 7 days for the infection unit: new carriers, wards on alert now,
+    and results needing action before release."""
+    end = s.latest
+    start = end - pd.Timedelta(days=6)
+    f = ht.carrier_findings(data().iso_all, start, end, phenotypes=PHENOTYPES)
+    f = ht.add_recent_wards(f, ward_visits()[lambda v: v.sample_date <= end])
+    on_alert = []
+    for ph in PHENOTYPES:
+        st = ht.current_status(ht.weekly_counts(s.iso, ph))
+        on_alert += [dict(r, phenotype=ph) for r in records(st[st.alert])]
+    ev = checks_all()
+    ev = ev[(ev.sample_date >= start) & (ev.sample_date <= end) & ev.flagged]
+    return dict(start=start.date().isoformat(), end=end.date().isoformat(),
+                findings=records(f.assign(sample_date=f.sample_date.dt.date.astype(str),
+                                          prev_date=f.prev_date.dt.date.astype(str).where(f.prev_date.notna()))),
+                alerts=on_alert, checks=rc.category_counts(ev),
+                checks_flagged=records(ev.assign(sample_date=ev.sample_date.dt.date.astype(str)).drop(columns=["flagged"])))
+
+
 @app.get("/api/alert-timeline")
 def alert_timeline():
     """Every cluster alert ever raised (all phenotypes, all wards), for the time machine's markers.
@@ -341,9 +388,16 @@ def alerts(phenotype: Literal["esbl", "mrsa", "vre", "cpe"] = "mrsa", specimen: 
 @app.get("/api/ward/{code}")
 def ward_view(code: str, specimen: str | None = None, s: Snap = Depends(snap)):
     """Own-ward page: last 4 weeks vs the ward's normal, rolling 12 months vs the year before and vs all sites."""
-    wards = data().wards
-    if code not in set(wards.ward_code):
+    if code not in set(data().wards.ward_code):
         raise HTTPException(404, f"Unknown ward {code!r}")
+    return _ward_view(code, specimen, s.latest.date().isoformat())
+
+
+@lru_cache(maxsize=512)
+def _ward_view(code: str, specimen: str | None, as_of: str):
+    """Cached per ward, specimen and date: the replay revisits the same weeks. Cleared when data is imported."""
+    s = snap(date.fromisoformat(as_of)) if as_of != latest().date().isoformat() else snap()
+    wards = data().wards
     end = s.latest
     w12, prev12 = cw.window_dates(end, "12m"), cw.window_dates(end, "12m", offset=1)
     w4 = cw.window_dates(end, "4w")
@@ -437,7 +491,7 @@ def local_only(request: Request):
 
 
 def reload_data():
-    for cached in (data, _snapshot, ward_visits, checks_all):
+    for cached in (data, _snapshot, ward_visits, checks_all, _ward_view):
         cached.cache_clear()
 
 

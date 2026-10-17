@@ -279,6 +279,20 @@ def add_recent_wards(findings, visits, days=30):
     return findings.assign(recent_wards=[recent.get(i, []) for i in findings.finding_id])
 
 
+def carrier_movements(findings):
+    """Ward-to-ward movements of new carriers: one row per (ward the patient was sampled on in the 30 days
+    before, ward of the finding, phenotype) with the number of patients. Needs add_recent_wards first.
+    A lead for where carriage may have been picked up, not proof of transmission."""
+    new = findings[findings.status == "new"]
+    rows = [(prev, r.ward_code, r.phenotype, r.patient_id, bool(r.hospital_onset))
+            for r in new.itertuples() for prev in r.recent_wards]
+    moves = pd.DataFrame(rows, columns=["from_ward", "to_ward", "phenotype", "patient_id", "hospital_onset"])
+    if moves.empty:
+        return moves.assign(patients=pd.Series(dtype=int))[["from_ward", "to_ward", "phenotype", "patients"]]
+    return (moves.groupby(["from_ward", "to_ward", "phenotype"]).patient_id.nunique()
+            .reset_index(name="patients").sort_values("patients", ascending=False, kind="stable"))
+
+
 def plant_outbreak(iso, ward, phenotype, organism, start, weeks=3, cases=6, seed=0):
     """TEST ONLY: add fake cases to check that detect_clusters catches a known outbreak."""
     rng = np.random.default_rng(seed)

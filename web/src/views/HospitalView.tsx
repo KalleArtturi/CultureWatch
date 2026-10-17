@@ -6,7 +6,7 @@ import { FilterBar } from '../components/FilterBar'
 import { Status } from '../components/Status'
 import { num, pct, pp, pValue, shortOrg } from '../format'
 import { filterParams, useMeta, useT, type Filters } from '../state'
-import type { ExpiryResp, OverviewResp, Rate, SettingComparison, WardProfileRow } from '../types'
+import type { ExpiryResp, HomeAreaRow, OverviewResp, Rate, SettingComparison, WardProfileRow } from '../types'
 
 export function HospitalView({ filters, setFilters, onOpenWard }: {
   filters: Filters
@@ -19,6 +19,7 @@ export function HospitalView({ filters, setFilters, onOpenWard }: {
   const ov = useApi<OverviewResp>('/api/overview', params)
   const comp = useApi<SettingComparison[]>('/api/hospital-vs-community', params)
   const wp = useApi<WardProfileRow[]>('/api/ward-profile', params)
+  const areas = useApi<{ areas: HomeAreaRow[] }>('/api/home-areas', params)
   const expiry = useApi<ExpiryResp>('/api/expiry', filterParams(filters, ['time', 'ward']))
   const minN = meta.min_isolates
   const small = <span className="muted">{t.common.nLow(minN)}</span>
@@ -99,6 +100,26 @@ export function HospitalView({ filters, setFilters, onOpenWard }: {
               { key: 'mrsap', header: t.common.pAbove, title: t.common.pHelp, numeric: true, render: r => <PFlag p={r.mrsa_p_above} />, sort: r => r.mrsa_p_above },
               { key: 'vre', header: 'VRE', numeric: true, render: r => r.vre_n, sort: r => r.vre_n },
               { key: 'cpe', header: 'CPE', numeric: true, render: r => r.cpe_n, sort: r => r.cpe_n },
+            ]}
+          />
+        )}
+      </div>
+
+      <div className={`card${areas.loading ? ' loading' : ''}`}>
+        <div className="card-head"><h3>{t.areas.title}</h3><p>{t.areas.sub}</p></div>
+        {areas.error && <p className="error">{areas.error}</p>}
+        {areas.data && (
+          <DataTable
+            rows={areas.data.areas}
+            rowKey={r => r.home_area}
+            initialSort={{ key: 'n', desc: true }}
+            columns={[
+              { key: 'a', header: t.areas.area, render: r => t.findings.areas[r.home_area] ?? r.home_area, sort: r => r.home_area },
+              { key: 'n', header: t.areas.isolates, numeric: true, render: r => num(r.first_isolates), sort: r => r.first_isolates },
+              { key: 'esbl', header: 'ESBL %', numeric: true, render: r => r.esbl.pct === null ? small : pct(r.esbl.pct), sort: r => r.esbl.pct },
+              { key: 'mrsa', header: 'MRSA %', numeric: true, render: r => r.mrsa.pct === null ? small : pct(r.mrsa.pct), sort: r => r.mrsa.pct },
+              { key: 'vre', header: 'VRE', numeric: true, render: r => num(r.vre_cases), sort: r => r.vre_cases },
+              { key: 'cpe', header: 'CPE', numeric: true, render: r => num(r.cpe_cases), sort: r => r.cpe_cases },
             ]}
           />
         )}

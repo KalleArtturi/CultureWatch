@@ -343,3 +343,18 @@ details summary { cursor: pointer; color: var(--text-2); }
 }
 .demo-callout > div { display: grid; gap: 4px; }
 .demo-callout strong { font-size: 15px; }
+
+.weekly-list { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 6px; }
+
+/* Printing (antibiogram, weekly summary): only the page content, on white, every table row. */
+.print-only { display: none; }
+@media print {
+  :root { --page: #fff; --surface: #fff; --surface-2: #f3f3f3; --text: #000; --text-2: #333; --border: #bbb; --grid: #ddd; }
+  body { background: #fff; color: #000; }
+  .top, .no-print, .demo-callout, .pager, .table-search { display: none !important; }
+  .print-only { display: block; }
+  main { padding: 0; max-width: none; }
+  .card { break-inside: avoid; box-shadow: none; }
+  .table-wrap { overflow: visible; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

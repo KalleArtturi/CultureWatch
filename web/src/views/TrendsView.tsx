@@ -31,12 +31,6 @@ export function TrendsView({ filters, setFilters }: { filters: Filters; setFilte
       </div>
       <FilterBar filters={filters} onChange={setFilters} ignore={['time']} />
 
-      {expiry.data && (
-        <div className={expiry.loading ? 'loading' : undefined} style={{ display: 'grid', gap: 12 }}>
-          <ExpiryWatch data={expiry.data} onShow={show} />
-        </div>
-      )}
-
       <div className="filter-bar" id="trend-chart">
         <label className="field">
           <span>{t.common.organism}</span>
@@ -74,6 +68,12 @@ export function TrendsView({ filters, setFilters }: { filters: Filters; setFilte
           </>
         ) : <p className="muted">{t.trends.notEnough}</p>)}
       </div>
+
+      {expiry.data && (
+        <div className={expiry.loading ? 'loading' : undefined} style={{ display: 'grid', gap: 12 }}>
+          <ExpiryWatch data={expiry.data} onShow={show} />
+        </div>
+      )}
 
       <div className={`card${summary.loading ? ' loading' : ''}`}>
         <div className="card-head"><h3>{t.trends.keyPairs}</h3><p>{t.trends.keyPairsSub}</p></div>
