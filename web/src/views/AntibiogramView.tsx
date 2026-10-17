@@ -107,7 +107,6 @@ export function AntibiogramView({ filters, setFilters }: { filters: Filters; set
               </table>
             </div>
           )}
-          <p className="small muted" style={{ marginTop: 10 }}>{t.abg.note}</p>
           {tip.node}
         </div>
       )}

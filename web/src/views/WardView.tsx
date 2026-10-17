@@ -72,7 +72,7 @@ function plainSummary(data: WardResp, t: Strings, signals: Signal[]): string[] {
   return lines
 }
 
-export function WardView({ code, onChangeWard }: { code: string; onChangeWard: () => void }) {
+export function WardView({ code }: { code: string }) {
   const { meta, abLabel, specimenName } = useMeta()
   const { t, lang } = useT()
   const [specimen, setSpecimen] = useState('')
@@ -114,7 +114,6 @@ export function WardView({ code, onChangeWard }: { code: string; onChangeWard: (
         <span className="sub">
           {ward.code} · {otherName} · {ward.ward_type === 'in' ? t.ward.inpatient : t.ward.outpatient} · {t.ward.dataThrough(date(data.latest))}
         </span>
-        <button type="button" className="link-btn" onClick={onChangeWard}>{t.ward.change}</button>
       </div>
 
       <section className={`summary${alerts.length || signals.length ? ' attention' : ''}`} aria-label={t.ward.inShort}>
@@ -181,7 +180,6 @@ export function WardView({ code, onChangeWard }: { code: string; onChangeWard: (
             </div>
           ))}
         </div>
-        <p className="small muted">{t.ward.sparkNote}</p>
       </section>
 
       {/* ---------------- Last 12 months ---------------- */}
@@ -249,7 +247,6 @@ export function WardView({ code, onChangeWard }: { code: string; onChangeWard: (
             ]} />
           )}
         </div>
-        <p className="small muted">{t.ward.signalNote}</p>
       </section>
 
       <div className="grid-2">

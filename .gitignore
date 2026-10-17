@@ -61,3 +61,4 @@ data/
 synthetic_micr*/
 # *.csv
 # *.parquet
+tyks_data/

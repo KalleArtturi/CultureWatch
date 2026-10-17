@@ -152,6 +152,7 @@ export function FindingsView() {
         <DataTable
           rows={f}
           rowKey={r => r.finding_id}
+          search={r => [r.patient_id, wardName(r.ward_code), r.ward_code, r.organisms, PHENOTYPE_LABEL[r.phenotype], specimenName(r.specimen), t.findings.status[r.status]].join(' ')}
           highlight={r => isNew(r) && !notified[r.finding_id]?.iu}
           empty={t.findings.none}
           columns={[
@@ -180,14 +181,6 @@ export function FindingsView() {
           ]}
         />
         {!data.history_complete && <p className="small muted" style={{ marginTop: 8 }}>{t.findings.historyNote}</p>}
-        <p className="small muted" style={{ marginTop: 4 }}>{t.findings.storageNote}</p>
-      </div>
-
-      <div className="card">
-        <div className="card-head"><h3>{t.findings.processTitle}</h3><p>{t.findings.processSource}</p></div>
-        <ol className="process">
-          {t.findings.process.map(step => <li key={step}>{step}</li>)}
-        </ol>
       </div>
     </div>
   )

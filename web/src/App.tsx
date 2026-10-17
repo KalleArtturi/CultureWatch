@@ -19,8 +19,19 @@ import { TreatmentView } from './views/TreatmentView'
 import { TrendsView } from './views/TrendsView'
 import { WardView } from './views/WardView'
 
+// Share / QR button is hidden for now; set to true to bring it back.
+const SHOW_SHARE = false
+
 const ROUTES = ['ward', 'findings', 'checks', 'alerts', 'hospital', 'antibiogram', 'treatment', 'trends', 'data', 'methods'] as const
 type Route = (typeof ROUTES)[number]
+
+// Main tabs, grouped by who uses them; Import and Methods sit apart as small links.
+const GROUPS = [
+  { id: 'ward', routes: ['ward'] },
+  { id: 'control', routes: ['findings', 'alerts'] },
+  { id: 'lab', routes: ['checks'] },
+  { id: 'analysis', routes: ['hospital', 'antibiogram', 'treatment', 'trends'] },
+] as const satisfies readonly { id: string; routes: readonly Route[] }[]
 
 function readRoute(): Route {
   const id = window.location.hash.replace(/^#\/?/, '')
@@ -37,6 +48,7 @@ export function App() {
   const [myWard, setMyWardState] = useState<string | null>(loadMyWard)
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
   const [asOf, setAsOf] = useState<string | null>(null)
+  const [autoPlay, setAutoPlay] = useState(false)
   const [sharing, setSharing] = useState(false)
 
   useEffect(() => {
@@ -69,6 +81,7 @@ export function App() {
   if (!helpers) return <main><p className="muted">{t.app.loading}</p></main>
   const known = myWard && helpers.meta.wards.some(w => w.ward_code === myWard) ? myWard : null
   const weeks = helpers.meta.replay_weeks
+  const group = GROUPS.find(g => (g.routes as readonly Route[]).includes(route))
 
   return (
     <LangContext.Provider value={lang}>
@@ -76,11 +89,11 @@ export function App() {
         <AsOfContext.Provider value={asOf}>
           <div className={`top${asOf ? ' replaying' : ''}`}>
             <header className="app-header">
-              <div className="brand"><span className="brand-mark" aria-hidden="true" />CultureWatch</div>
+              <a className="brand" href="#/ward" title={t.nav.ward}><span className="brand-mark" aria-hidden="true" />CultureWatch</a>
               <span className="muted small">{asOf ? t.app.replaying(date(asOf)) : t.app.dataThrough(date(helpers.meta.date_max))}</span>
               <span className="header-spacer" />
-              <button type="button" className="btn" aria-pressed={asOf !== null}
-                onClick={() => setAsOf(asOf ? null : weeks[weeks.length - 1])}
+              <button type="button" className={`btn${asOf ? '' : ' primary'}`} aria-pressed={asOf !== null}
+                onClick={() => { setAutoPlay(false); setAsOf(asOf ? null : weeks[weeks.length - 1]) }}
                 title={t.app.timeMachineTitle}>
                 {asOf ? t.app.exitTimeMachine : t.app.timeMachine}
               </button>
@@ -98,21 +111,43 @@ export function App() {
                   </button>
                 ))}
               </div>
-              <button type="button" className="btn" onClick={() => setSharing(true)}>{t.app.share}</button>
+              {SHOW_SHARE && <button type="button" className="btn" onClick={() => setSharing(true)}>{t.app.share}</button>}
               <span className="synthetic" title={t.app.syntheticTitle}>{t.app.synthetic}</span>
             </header>
             <nav className="nav" aria-label="Views">
-              {ROUTES.map(r => (
-                <a key={r} href={`#/${r}`} aria-current={route === r ? 'page' : undefined}>
-                  {r === 'ward' && known ? helpers.wardName(known) : t.nav[r]}
+              {GROUPS.map(g => (
+                <a key={g.id} href={`#/${g.routes[0]}`} aria-current={g === group ? 'page' : undefined}>
+                  {g.id === 'ward' && known ? helpers.wardName(known) : t.navGroup[g.id]}
                 </a>
               ))}
+              <span className="header-spacer" />
+              <a href="#/data" className="nav-minor" aria-current={route === 'data' ? 'page' : undefined}>{t.nav.data}</a>
+              <a href="#/methods" className="nav-minor" aria-current={route === 'methods' ? 'page' : undefined}>{t.nav.methods}</a>
             </nav>
-            {asOf && <TimeMachine asOf={asOf} setAsOf={setAsOf} myWard={known} onExit={() => setAsOf(null)} />}
+            {group && group.routes.length > 1 && (
+              <nav className="subnav" aria-label={t.navGroup[group.id]}>
+                {group.routes.map(r => (
+                  <a key={r} href={`#/${r}`} aria-current={route === r ? 'page' : undefined}>{t.nav[r]}</a>
+                ))}
+              </nav>
+            )}
+            {asOf && <TimeMachine asOf={asOf} setAsOf={setAsOf} myWard={known} onExit={() => setAsOf(null)} autoPlay={autoPlay} />}
           </div>
           <main>
+            {route === 'ward' && !asOf && (
+              <div className="demo-callout">
+                <div>
+                  <strong>{t.demo.title}</strong>
+                  <span className="secondary">{t.demo.text}</span>
+                </div>
+                <button type="button" className="btn primary"
+                  onClick={() => { setAutoPlay(true); setAsOf(weeks[weeks.length - 1]) }}>
+                  {t.demo.cta}
+                </button>
+              </div>
+            )}
             {route === 'ward' && (known
-              ? <WardView key={known} code={known} onChangeWard={() => setMyWard(null)} />
+              ? <WardView key={known} code={known} />
               : <WardPicker wards={helpers.meta.wards} onPick={setMyWard} />)}
             {route === 'findings' && <FindingsView />}
             {route === 'checks' && <ChecksView />}

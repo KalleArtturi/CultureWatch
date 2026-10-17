@@ -13,6 +13,11 @@ export function MethodsView() {
         ))}
       </ul>
       <p className="secondary" style={{ marginTop: 12 }}>{t.methods.footer}</p>
+      <h2 style={{ marginTop: 24, marginBottom: 8 }}>{t.findings.processTitle}</h2>
+      <ol className="process">
+        {t.findings.process.map(step => <li key={step}>{step}</li>)}
+      </ol>
+      <p className="secondary" style={{ marginTop: 8 }}>{t.findings.processSource}</p>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useApi } from '../api'
 import { DataTable } from '../components/DataTable'
-import { ExpiryHeadline, ExpiryWatch } from '../components/ExpiryWatch'
+import { ExpiryWatch } from '../components/ExpiryWatch'
 import { FilterBar } from '../components/FilterBar'
 import { Status } from '../components/Status'
 import { TrendChart } from '../components/TrendChart'
@@ -29,11 +29,10 @@ export function TrendsView({ filters, setFilters }: { filters: Filters; setFilte
         <h1>{t.trends.title}</h1>
         <span className="sub">{t.trends.sub}</span>
       </div>
-      <FilterBar filters={filters} onChange={setFilters} ignore={['time']} note={t.trends.timeIgnored} />
+      <FilterBar filters={filters} onChange={setFilters} ignore={['time']} />
 
       {expiry.data && (
         <div className={expiry.loading ? 'loading' : undefined} style={{ display: 'grid', gap: 12 }}>
-          <ExpiryHeadline data={expiry.data} />
           <ExpiryWatch data={expiry.data} onShow={show} />
         </div>
       )}

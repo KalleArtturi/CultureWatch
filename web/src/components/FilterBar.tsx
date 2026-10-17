@@ -1,16 +1,25 @@
+import { useState } from 'react'
 import { ALL, useMeta, useT, type FilterKey, type Filters } from '../state'
 
-/** One filter row above everything it scopes. Filters a view ignores are dimmed and named. */
-export function FilterBar({ filters, onChange, ignore = [], note }: {
+const MORE: FilterKey[] = ['setting', 'ward', 'sex', 'age_group']
+
+/**
+ * One filter row above everything it scopes: time and specimen up front, the rest behind
+ * "More filters". Filters a view ignores are not shown.
+ */
+export function FilterBar({ filters, onChange, ignore = [] }: {
   filters: Filters
   onChange: (f: Filters) => void
   ignore?: FilterKey[]
-  note?: string
 }) {
   const { meta, wardName, specimenName } = useMeta()
   const { t } = useT()
   const set = (k: FilterKey, v: string) => onChange({ ...filters, [k]: v })
-  const cls = (k: FilterKey) => `field${ignore.includes(k) ? ' ignored' : ''}`
+  const cls = () => 'field'
+  const shown = (k: FilterKey) => !ignore.includes(k)
+  const active = MORE.filter(k => shown(k) && filters[k] !== ALL)
+  const [open, setOpen] = useState(active.length > 0)
+  const clearMore = () => onChange({ ...filters, ...Object.fromEntries(active.map(k => [k, ALL])) })
 
   const times = [
     { value: '4w', label: t.filters.last4w },
@@ -21,7 +30,7 @@ export function FilterBar({ filters, onChange, ignore = [], note }: {
 
   return (
     <div className="filter-bar" role="group" aria-label="Filters">
-      <div className={cls('time')}>
+      {shown('time') && <div className={cls()}>
         <span>{t.filters.time}</span>
         <div className="segmented">
           {times.map(o => (
@@ -31,24 +40,31 @@ export function FilterBar({ filters, onChange, ignore = [], note }: {
               aria-pressed={filters.time === o.value}
               title={meta.periods.includes(o.value) ? t.filters.year(o.value) : undefined}
               onClick={() => set('time', o.value)}
-              disabled={ignore.includes('time')}
             >
               {o.label}
             </button>
           ))}
         </div>
+      </div>}
+      {shown('specimen') && <Select label={t.filters.specimen} all={t.filters.all} cls={cls()} value={filters.specimen} onChange={v => set('specimen', v)}
+        options={meta.specimens.map(s => ({ value: s, label: specimenName(s) }))} />}
+      <div className="field">
+        <span aria-hidden="true">&nbsp;</span>
+        <button type="button" className="btn" aria-expanded={open} onClick={() => setOpen(o => !o)}>
+          {t.filters.more}{active.length ? ` (${active.length})` : ''} {open ? '▴' : '▾'}
+        </button>
       </div>
-      <Select label={t.filters.specimen} all={t.filters.all} cls={cls('specimen')} value={filters.specimen} onChange={v => set('specimen', v)}
-        options={meta.specimens.map(s => ({ value: s, label: specimenName(s) }))} />
-      <Select label={t.filters.setting} all={t.filters.all} cls={cls('setting')} value={filters.setting} onChange={v => set('setting', v)}
-        options={Object.entries(t.filters.settings).map(([value, label]) => ({ value, label }))} />
-      <Select label={t.filters.ward} all={t.filters.all} cls={cls('ward')} value={filters.ward} onChange={v => set('ward', v)}
-        options={meta.wards.map(w => ({ value: w.ward_code, label: `${wardName(w.ward_code)} (${w.ward_code})` }))} />
-      <Select label={t.filters.sex} all={t.filters.all} cls={cls('sex')} value={filters.sex} onChange={v => set('sex', v)}
-        options={[{ value: 'F', label: t.filters.female }, { value: 'M', label: t.filters.male }]} />
-      <Select label={t.filters.age} all={t.filters.all} cls={cls('age_group')} value={filters.age_group} onChange={v => set('age_group', v)}
-        options={meta.age_groups.map(a => ({ value: a, label: a }))} />
-      {note && <span className="ignored-note">{note}</span>}
+      {active.length > 0 && <button type="button" className="link-btn small" style={{ alignSelf: 'center' }} onClick={clearMore}>{t.filters.clear}</button>}
+      {open && <div className="filter-more">
+      {shown('setting') && <Select label={t.filters.setting} all={t.filters.all} cls={cls()} value={filters.setting} onChange={v => set('setting', v)}
+        options={Object.entries(t.filters.settings).map(([value, label]) => ({ value, label }))} />}
+      {shown('ward') && <Select label={t.filters.ward} all={t.filters.all} cls={cls()} value={filters.ward} onChange={v => set('ward', v)}
+        options={meta.wards.map(w => ({ value: w.ward_code, label: `${wardName(w.ward_code)} (${w.ward_code})` }))} />}
+      {shown('sex') && <Select label={t.filters.sex} all={t.filters.all} cls={cls()} value={filters.sex} onChange={v => set('sex', v)}
+        options={[{ value: 'F', label: t.filters.female }, { value: 'M', label: t.filters.male }]} />}
+      {shown('age_group') && <Select label={t.filters.age} all={t.filters.all} cls={cls()} value={filters.age_group} onChange={v => set('age_group', v)}
+        options={meta.age_groups.map(a => ({ value: a, label: a }))} />}
+      </div>}
     </div>
   )
 }

@@ -85,6 +85,7 @@ export function ChecksView() {
         <DataTable
           rows={data.flagged}
           rowKey={r => r.isolate_id + r.rule + r.antibiotic_code}
+          search={r => [r.isolate_id, r.patient_id, wardName(r.ward_code), r.ward_code, r.organism, specimenName(r.specimen), r.antibiotic_code, t.checks.rules[r.rule] ?? r.rule].join(' ')}
           highlight={r => r.category !== 'confirm'}
           empty={t.checks.noneFlagged}
           columns={[
@@ -114,7 +115,6 @@ export function ChecksView() {
             { key: 'f', header: t.checks.flaggedCol, numeric: true, render: r => <strong>{num(r.flagged)}</strong>, sort: r => r.flagged },
           ]}
         />
-        <p className="small muted" style={{ marginTop: 8 }}>{t.checks.note}</p>
       </div>
     </div>
   )

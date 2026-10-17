@@ -126,7 +126,6 @@ export function AlertsView({ myWard }: { myWard: string | null }) {
         </div>
       )}
 
-      <p className="small muted">{t.alerts.method}</p>
     </div>
   )
 }

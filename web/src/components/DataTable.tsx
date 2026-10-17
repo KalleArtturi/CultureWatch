@@ -1,5 +1,8 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { num } from '../format'
 import { useT } from '../state'
+
+const PAGE_SIZE = 25
 
 export interface Column<T> {
   key: string
@@ -11,34 +14,64 @@ export interface Column<T> {
   title?: string
 }
 
-export function DataTable<T>({ rows, columns, rowKey, initialSort, highlight, empty }: {
+/**
+ * Sortable table that stays usable at real-hospital volumes: rows are paged (sorting and search
+ * run over all rows, not just the visible page), and `search` adds a text filter box.
+ */
+export function DataTable<T>({ rows, columns, rowKey, initialSort, highlight, empty, search, pageSize = PAGE_SIZE }: {
   rows: T[]
   columns: Column<T>[]
   rowKey: (row: T) => string
   initialSort?: { key: string; desc?: boolean }
   highlight?: (row: T) => boolean
   empty?: string
+  /** text a row can be found by; enables the search box */
+  search?: (row: T) => string
+  pageSize?: number
 }) {
   const { t } = useT()
   const [sort, setSort] = useState(initialSort)
+  const [query, setQuery] = useState('')
+  const [page, setPage] = useState(0)
+
+  const matched = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!search || !q) return rows
+    const terms = q.split(/\s+/)
+    return rows.filter(r => { const text = search(r).toLowerCase(); return terms.every(w => text.includes(w)) })
+  }, [rows, search, query])
 
   const sorted = useMemo(() => {
     const col = columns.find(c => c.key === sort?.key)
-    if (!col?.sort) return rows
+    if (!col?.sort) return matched
     const get = col.sort
     const dir = sort?.desc ? -1 : 1
-    return [...rows].sort((a, b) => {
+    return [...matched].sort((a, b) => {
       const va = get(a), vb = get(b)
       if (va === null || va === undefined) return 1 // missing values always last
       if (vb === null || vb === undefined) return -1
       return (va < vb ? -1 : va > vb ? 1 : 0) * dir
     })
-  }, [rows, columns, sort])
+  }, [matched, columns, sort])
+
+  // Back to the first page whenever the rows, search or order change.
+  useEffect(() => setPage(0), [rows.length, query, sort])
 
   if (!rows.length) return <p className="muted">{empty ?? t.common.noRows}</p>
 
+  const pages = Math.max(1, Math.ceil(sorted.length / pageSize))
+  const current = Math.min(page, pages - 1)
+  const visible = sorted.slice(current * pageSize, (current + 1) * pageSize)
+  const from = sorted.length ? current * pageSize + 1 : 0
+  const to = current * pageSize + visible.length
+
   return (
-    <div className="table-wrap">
+    <div className="data-table">
+      {search && (
+        <input type="search" className="table-search" value={query} onChange={e => setQuery(e.target.value)}
+          placeholder={t.common.search} aria-label={t.common.search} />
+      )}
+      <div className="table-wrap">
       <table>
         <thead>
           <tr>
@@ -60,7 +93,7 @@ export function DataTable<T>({ rows, columns, rowKey, initialSort, highlight, em
           </tr>
         </thead>
         <tbody>
-          {sorted.map(r => (
+          {visible.map(r => (
             <tr key={rowKey(r)} className={highlight?.(r) ? 'highlight' : undefined}>
               {columns.map(c => (
                 <td key={c.key} className={c.numeric ? 'r' : undefined}>
@@ -71,6 +104,23 @@ export function DataTable<T>({ rows, columns, rowKey, initialSort, highlight, em
           ))}
         </tbody>
       </table>
+      {!sorted.length && <p className="muted" style={{ padding: '10px' }}>{t.common.noMatch}</p>}
+      </div>
+      {(pages > 1 || matched.length !== rows.length) && (
+        <div className="pager">
+          <span className="small muted">
+            {t.common.showing(num(from), num(to), num(sorted.length))}
+            {matched.length !== rows.length && ` ${t.common.filteredFrom(num(rows.length))}`}
+          </span>
+          {pages > 1 && (
+            <span className="pager-buttons">
+              <button type="button" className="btn" onClick={() => setPage(current - 1)} disabled={current === 0}>{t.common.prev}</button>
+              <span className="small">{t.common.pageOf(current + 1, pages)}</span>
+              <button type="button" className="btn" onClick={() => setPage(current + 1)} disabled={current >= pages - 1}>{t.common.next}</button>
+            </span>
+          )}
+        </div>
+      )}
     </div>
   )
 }
