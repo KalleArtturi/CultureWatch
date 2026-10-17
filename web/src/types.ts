@@ -39,6 +39,30 @@ export interface Meta {
   replay_weeks: string[]
 }
 
+export interface Finding {
+  finding_id: string
+  patient_id: string
+  sample_date: string
+  phenotype: Phenotype
+  organisms: string
+  ward_code: string
+  specimen: string
+  hospital_onset: boolean
+  sex: string
+  age_years: number
+  home_area: string
+  status: 'new' | 'known' | 'repositive'
+  prev_date: string | null
+  recent_wards: string[]
+}
+
+export interface FindingsResp {
+  start: string
+  end: string
+  history_complete: boolean
+  findings: Finding[]
+}
+
 export interface TimelineAlert {
   phenotype: Phenotype
   week_end: string

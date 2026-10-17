@@ -229,6 +229,56 @@ def current_status(counts, window=4, baseline=52, min_cases=3, alpha=0.01):
     return pd.DataFrame(rows, columns=["ward_code", "window_end", "observed", "expected", "p_value", "alert"])
 
 
+CARRIER_MEMORY_DAYS = 365  # contact precautions can be lifted at the earliest 12 months after the last positive
+
+
+def load_all_isolates(path=cw.PROCESSED / "isolates_joined.csv"):
+    """Every isolate, not just first isolates: carrier status depends on each positive sample."""
+    return pd.read_csv(path, parse_dates=["sample_date"])
+
+
+def carrier_findings(iso_all, start, end, phenotypes=("esbl", "mrsa", "vre", "cpe")):
+    """Resistant findings sampled between start and end (one row per patient, phenotype and day), each classed
+    for the infection unit's workflow:
+      new        - first positive for this phenotype in the data: register as a carrier, notify ward and
+                   (Finnish practice) the home municipality's hygiene nurse
+      known      - previous positive within 12 months: already a known carrier, precautions should be on
+      repositive - known carrier whose last positive was over 12 months ago: precautions may have been lifted.
+    History before the start of the data is unknown, so early 'new' findings can be known carriers."""
+    iso_all = iso_all[iso_all.sample_date <= pd.Timestamp(end)]
+    rows = []
+    for ph in phenotypes:
+        d = (iso_all[iso_all[ph] == 1].sort_values(["sample_date", "culture_id", "isolate_no"])
+             .groupby(["patient_id", "sample_date"], as_index=False)
+             .agg(organisms=("organism", lambda s: ", ".join(sorted(set(s)))), ward_code=("ward_code", "first"),
+                  specimen=("specimen", "first"), hospital_onset=("hospital_onset", "max"), sex=("sex", "first"),
+                  age_years=("age_years", "first"), home_area=("home_area", "first")))
+        d["prev_date"] = d.groupby("patient_id").sample_date.shift()
+        d["phenotype"] = ph
+        rows.append(d)
+    out = pd.concat(rows, ignore_index=True) if rows else pd.DataFrame()
+    gap = (out.sample_date - out.prev_date).dt.days
+    out["status"] = np.select([out.prev_date.isna(), gap <= CARRIER_MEMORY_DAYS], ["new", "known"], default="repositive")
+    out = out[out.sample_date >= pd.Timestamp(start)]
+    out["finding_id"] = out.phenotype + "-" + out.patient_id + "-" + out.sample_date.dt.strftime("%Y%m%d")
+    return out.sort_values(["sample_date", "phenotype"], ascending=[False, True]).reset_index(drop=True)
+
+
+def load_ward_visits(path=cw.RAW_DIR / "cultures.csv"):
+    """Where each patient was sampled, from every culture (negative ones too): a proxy for where they stayed."""
+    return pd.read_csv(path, usecols=["patient_id", "sample_date", "ward_code"], parse_dates=["sample_date"])
+
+
+def add_recent_wards(findings, visits, days=30):
+    """Other wards each patient was sampled on in the `days` before the finding: a lead for infection control
+    on where carriage may have been picked up or passed on (the line-list 'movement' column)."""
+    v = visits.merge(findings[["finding_id", "patient_id", "sample_date", "ward_code"]], on="patient_id", suffixes=("", "_f"))
+    v = v[(v.sample_date < v.sample_date_f) & (v.sample_date >= v.sample_date_f - pd.Timedelta(days=days))
+          & (v.ward_code != v.ward_code_f)]
+    recent = v.sort_values("sample_date").groupby("finding_id").ward_code.agg(lambda s: list(dict.fromkeys(s)))
+    return findings.assign(recent_wards=[recent.get(i, []) for i in findings.finding_id])
+
+
 def plant_outbreak(iso, ward, phenotype, organism, start, weeks=3, cases=6, seed=0):
     """TEST ONLY: add fake cases to check that detect_clusters catches a known outbreak."""
     rng = np.random.default_rng(seed)

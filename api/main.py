@@ -129,6 +129,36 @@ def meta():
     )
 
 
+@lru_cache(maxsize=1)
+def all_isolates():
+    return ht.load_all_isolates()
+
+
+@lru_cache(maxsize=1)
+def ward_visits():
+    return ht.load_ward_visits()
+
+
+@app.get("/api/findings")
+def findings(days: int = 7, phenotype: Literal["esbl", "mrsa", "vre", "cpe"] | None = None,
+             ward: str | None = None, s: Snap = Depends(snap)):
+    """Resistant-findings worklist for the infection unit: the last `days` days up to the (time machine) date,
+    each finding classed new / known / re-positive carrier. Carrier history uses every isolate, not first isolates."""
+    if not 1 <= days <= 366:
+        raise HTTPException(422, "days must be between 1 and 366")
+    end = s.latest
+    start = end - pd.Timedelta(days=days - 1)
+    f = ht.carrier_findings(all_isolates(), start, end, phenotypes=[phenotype] if phenotype else PHENOTYPES)
+    if ward:
+        f = f[f.ward_code == ward]
+    f = ht.add_recent_wards(f, ward_visits()[lambda v: v.sample_date <= end])
+    data_start = data()[0].sample_date.min()
+    return dict(start=start.date().isoformat(), end=end.date().isoformat(),
+                history_complete=bool((start - data_start).days >= ht.CARRIER_MEMORY_DAYS),
+                findings=records(f.assign(sample_date=f.sample_date.dt.date.astype(str),
+                                          prev_date=f.prev_date.dt.date.astype(str).where(f.prev_date.notna()))))
+
+
 @app.get("/api/alert-timeline")
 def alert_timeline():
     """Every cluster alert ever raised (all phenotypes, all wards), for the time machine's markers.

@@ -1,0 +1,97 @@
+# CultureWatch web app
+
+**A website that shows hospital staff which bacteria on their ward are becoming hard to treat, and warns them early.**
+
+Some bacteria learn to survive antibiotics. When that happens, the usual medicine stops working. The hospital lab already tests every sample for this, but the results sit in big tables. This app turns those results into a few clear answers: *Is something unusual happening on my ward right now? Is it getting worse this year? Which medicine still works?*
+
+> All data is made up (synthetic). It shows how the tool works, not the situation in a real hospital.
+
+---
+
+## What you can do
+
+| Tab | What it tells you |
+|---|---|
+| **My ward** | Opens on your own ward. A short summary in plain words, then: anything unusual **in the last 4 weeks**? Is resistance **worse than last year** or worse than the rest of the hospital? |
+| **Findings** | The lab's daily to-do list: every new resistant bacterium found, whether the patient is a **new or known carrier**, and checkboxes for who has been told (infection unit, ward, home municipality). |
+| **Alerts** | Every ward at once: which wards have more cases than normal right now, and every alert in the past. |
+| **Hospital** | The big picture: totals, ward "hotspots", hospital vs outpatient resistance. |
+| **Antibiogram** | A colour table: for each bacterium and each antibiotic, how often the antibiotic **fails** (green = rarely, red = often). |
+| **Treatment guide** | Pick an infection type (e.g. bladder infection in a woman): which antibiotic would have worked for most past patients. |
+| **Trends** | Is resistance rising over time? And the **guideline expiry date**: when a common antibiotic crosses the 20% line where doctors stop starting it before the test result. |
+| **Methods** | Every rule and calculation, written out. |
+
+**Extras in the top bar**
+
+- **Time machine:** rewind to any week and press Play. The whole app shows what it *would have shown* on that day, so you can watch an alert fire (try the ICU in March 2026).
+- **FI / EN:** the whole app works in Finnish and English.
+- **Share / Jaa:** shows a QR code so anyone can open the same page on their phone.
+
+---
+
+## How it works
+
+```
+ Lab results (CSV files)
+        │
+        ▼
+ Python pipeline         cleans the data and applies the counting rules
+        │
+        ▼
+ Python API (api/)       answers questions like "ICU, last 4 weeks?" with numbers
+        │
+        ▼
+ This web app (web/)     draws those numbers as pages, tables and charts
+```
+
+The web app **never calculates anything itself**. Every number comes from the same Python code the rest of the team uses, so all views always agree.
+
+### How the warnings are decided
+
+- **Alert (last 4 weeks):** we count a ward's cases of a resistant bacterium in the last 4 weeks and compare them with that ward's normal level over the previous year. If it is clearly more than normal (at least 3 cases, and very unlikely to be chance), it is an alert.
+- **Signal (last 12 months):** a resistance rate that has clearly gone **up since last year**, or is clearly **higher than the rest of the hospital**.
+- **Guideline expiry:** we draw a trend line through resistance over time and see when it crosses **20%**.
+- **New vs known carrier:** *new* = first time this patient has this bacterium; *known* = found before within 12 months; *positive again* = found before, but over 12 months ago.
+
+"Clearly" means a standard statistics test says it's unlikely to be random. The Methods tab names each test.
+
+---
+
+## Words you will see
+
+| Word | Meaning |
+|---|---|
+| **Resistant** | The antibiotic did not kill the bacterium. |
+| **MRSA, ESBL, VRE, CPE** | Types of bacteria that resist important antibiotics. Hospitals track these closely. |
+| **Carrier** | A patient who has one of those bacteria (even without being ill). |
+| **First isolate** | We count each patient's bacterium once per year, so a patient tested ten times doesn't count ten times. |
+| **n<30** | Fewer than 30 results, too few for a reliable percentage, so we don't show one. |
+| **Hospital-onset** | The sample was taken on day 3 or later of a hospital stay, so the bacterium may have been picked up in hospital. |
+
+---
+
+## Run it
+
+You need the Python environment from the main [README](../README.md) and [Node.js](https://nodejs.org).
+
+```bash
+python run_pipeline.py                     # once: prepares the data
+uvicorn api.main:app --port 8000           # terminal 1: the API
+cd web && npm install && npm run dev       # terminal 2: the web app
+```
+
+Open http://localhost:5173. To share it on phones, see *Share it on phones* in the main README.
+
+---
+
+## Where things are
+
+```
+web/
+├── src/App.tsx          top bar, tabs, language, time machine
+├── src/views/           one file per tab (WardView, FindingsView, AlertsView, ...)
+├── src/components/      reusable parts: charts, tables, filters, QR dialog
+├── src/strings.ts       every piece of text, in English and Finnish
+├── src/format.ts        how numbers and dates are written in each language
+└── src/api.ts           how the app asks the API for data
+```
