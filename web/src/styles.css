@@ -151,7 +151,7 @@ select, input[type='number'] {
   height: 32px; padding: 0 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
   min-width: 120px;
 }
-.segmented { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.segmented { justify-self: start; display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface); }
 .segmented button { border: 0; background: none; padding: 0 12px; height: 30px; cursor: pointer; color: var(--text-2); white-space: nowrap; }
 .segmented button + button { border-left: 1px solid var(--border); }
 .segmented button:hover { background: var(--surface-2); }
@@ -275,6 +275,14 @@ tbody tr:hover td { background: var(--surface-2); }
 }
 .qr { justify-self: center; width: 280px; height: 280px; max-width: 100%; image-rendering: pixelated; background: #fff; padding: 8px; border-radius: 8px; }
 .share-url { display: block; font-size: 12px; padding: 8px; border-radius: 6px; background: var(--surface-2); overflow-wrap: anywhere; }
+
+/* ---------- CSV import ---------- */
+.dropzone {
+  display: grid; gap: 4px; place-items: center; text-align: center; padding: 28px 16px; cursor: pointer;
+  border: 2px dashed var(--axis); border-radius: var(--radius); background: var(--surface-2);
+}
+.dropzone:hover, .dropzone.over { border-color: var(--series-1); background: var(--series-1-wash); }
+.dropzone.off { cursor: not-allowed; opacity: 0.5; }
 
 /* ---------- Findings worklist ---------- */
 .checks { display: flex; gap: 10px; flex-wrap: nowrap; }

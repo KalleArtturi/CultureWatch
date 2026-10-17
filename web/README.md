@@ -19,6 +19,7 @@ Some bacteria learn to survive antibiotics. When that happens, the usual medicin
 | **Antibiogram** | A colour table: for each bacterium and each antibiotic, how often the antibiotic **fails** (green = rarely, red = often). |
 | **Treatment guide** | Pick an infection type (e.g. bladder infection in a woman): which antibiotic would have worked for most past patients. |
 | **Trends** | Is resistance rising over time? And the **guideline expiry date**: when a common antibiotic crosses the 20% line where doctors stop starting it before the test result. |
+| **Import** | Upload new lab results as CSV files (e.g. this week's export from the lab system). The files are checked with the same rules as the data pipeline; nothing changes unless every check passes. You can always go back to the original data. |
 | **Methods** | Every rule and calculation, written out. |
 
 **Extras in the top bar**
@@ -81,6 +82,8 @@ cd web && npm install && npm run dev       # terminal 2: the web app
 ```
 
 Open http://localhost:5173. To share it on phones, see *Share it on phones* in the main README.
+
+**Try the import:** `python make_demo_batch.py` creates two more weeks of made-up results in `data/demo_batch/`, including a small planted MRSA outbreak on Surgery. On the **Import** tab, choose those four files, press *Check files*, then *Import*: the app reloads and Surgery shows an alert. *Restore original dataset* undoes it. Import only works on the computer running the app, never through the public link.
 
 ---
 

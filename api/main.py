@@ -9,13 +9,15 @@ from pathlib import Path
 from typing import Literal, NamedTuple
 
 import pandas as pd
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 
 import cw_utils as cw
 import antibiogram as ab
 import treatment_guide as tg
 import hospital_trends as ht
+from api import importer
 
 app = FastAPI(title="CultureWatch API")
 
@@ -34,8 +36,8 @@ def data():
     ast = cw.load_ast()
     iso = ht.load_isolates()
     iso["age_group"] = pd.cut(iso.age_years, cw.AGE_BINS, right=False, labels=cw.AGE_LABELS)
-    wards = pd.read_csv(cw.RAW_DIR / "wards.csv")
-    abx = pd.read_csv(cw.RAW_DIR / "antibiotics.csv")
+    wards = pd.read_csv(importer.raw_dir() / "wards.csv")  # code lists follow an applied import
+    abx = pd.read_csv(importer.raw_dir() / "antibiotics.csv")
     return ast, iso, wards, abx
 
 
@@ -136,7 +138,7 @@ def all_isolates():
 
 @lru_cache(maxsize=1)
 def ward_visits():
-    return ht.load_ward_visits()
+    return ht.load_ward_visits(importer.raw_dir() / "cultures.csv")
 
 
 @app.get("/api/findings")
@@ -359,6 +361,73 @@ def ward_view(code: str, specimen: str | None = None, s: Snap = Depends(snap)):
                                                 .reset_index(name="n")),
                            pairs=records(pairs)),
     )
+
+
+# ---------- CSV import (lab exports) ----------
+def local_only(request: Request):
+    """Changing data is only allowed on the computer running CultureWatch, never through the public demo link
+    (cloudflared forwards public visitors from localhost but adds a cf-connecting-ip header)."""
+    host = request.client.host if request.client else ""
+    if request.headers.get("cf-connecting-ip") or host not in ("127.0.0.1", "::1", "localhost"):
+        raise HTTPException(403, "Import is only available on the computer running CultureWatch.")
+
+
+def reload_data():
+    for cached in (data, _snapshot, all_isolates, ward_visits):
+        cached.cache_clear()
+
+
+@app.get("/api/import/status")
+def import_status(request: Request):
+    try:
+        local_only(request)
+        can_import = True
+    except HTTPException:
+        can_import = False
+    return {**importer.status(), "can_import": can_import, "tables": importer.TABLES, "required": importer.REQUIRED}
+
+
+@app.get("/api/import/template/{table}")
+def import_template(table: str):
+    if table not in importer.TABLES:
+        raise HTTPException(404, f"Unknown table {table!r}")
+    return Response(importer.template(table), media_type="text/csv",
+                    headers={"Content-Disposition": f'attachment; filename="{table}.csv"'})
+
+
+@app.put("/api/import/staging/{table}", dependencies=[Depends(local_only)])
+async def import_stage(table: str, request: Request):
+    """Upload one CSV file (the request body) as `table`."""
+    try:
+        return importer.stage(table, await request.body())
+    except importer.ImportProblem as e:
+        raise HTTPException(422, str(e))
+
+
+@app.delete("/api/import/staging", dependencies=[Depends(local_only)])
+def import_clear():
+    importer.clear_staging()
+    return importer.status()
+
+
+@app.post("/api/import/check", dependencies=[Depends(local_only)])
+def import_check(mode: Literal["append", "replace"] = "append"):
+    return importer.check(mode)[0]
+
+
+@app.post("/api/import/apply", dependencies=[Depends(local_only)])
+def import_apply(mode: Literal["append", "replace"] = "append"):
+    report = importer.apply(mode)
+    if report.get("applied"):
+        reload_data()
+    return report
+
+
+@app.post("/api/import/reset", dependencies=[Depends(local_only)])
+def import_reset():
+    importer.reset()
+    reload_data()
+    return importer.status()
 
 
 # ---------- Serve the built web UI (web/dist) from the same origin, for sharing one public link ----------

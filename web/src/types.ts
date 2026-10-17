@@ -63,6 +63,33 @@ export interface FindingsResp {
   findings: Finding[]
 }
 
+export interface StagedFile {
+  table: string
+  rows: number
+  missing: string[]
+}
+
+export interface ImportStatus {
+  source: 'original' | 'imported'
+  imported: { imported_at: string; mode: 'append' | 'replace'; rows: Record<string, number>; added: Record<string, number> } | null
+  staged: StagedFile[]
+  can_import: boolean
+  tables: string[]
+  required: string[]
+}
+
+export interface ImportReport {
+  mode: 'append' | 'replace'
+  ok: boolean
+  errors: string[]
+  warnings: string[]
+  tables: { table: string; rows: number; added: number }[]
+  date_min: string | null
+  date_max: string | null
+  passed: string | null
+  applied?: boolean
+}
+
 export interface TimelineAlert {
   phenotype: Phenotype
   week_end: string

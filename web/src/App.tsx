@@ -12,12 +12,13 @@ import { AlertsView } from './views/AlertsView'
 import { AntibiogramView } from './views/AntibiogramView'
 import { FindingsView } from './views/FindingsView'
 import { HospitalView } from './views/HospitalView'
+import { ImportView } from './views/ImportView'
 import { MethodsView } from './views/MethodsView'
 import { TreatmentView } from './views/TreatmentView'
 import { TrendsView } from './views/TrendsView'
 import { WardView } from './views/WardView'
 
-const ROUTES = ['ward', 'findings', 'alerts', 'hospital', 'antibiogram', 'treatment', 'trends', 'methods'] as const
+const ROUTES = ['ward', 'findings', 'alerts', 'hospital', 'antibiogram', 'treatment', 'trends', 'data', 'methods'] as const
 type Route = (typeof ROUTES)[number]
 
 function readRoute(): Route {
@@ -118,6 +119,7 @@ export function App() {
             {route === 'antibiogram' && <AntibiogramView filters={filters} setFilters={setFilters} />}
             {route === 'treatment' && <TreatmentView filters={filters} setFilters={setFilters} />}
             {route === 'trends' && <TrendsView filters={filters} setFilters={setFilters} />}
+            {route === 'data' && <ImportView />}
             {route === 'methods' && <MethodsView />}
           </main>
           {sharing && <ShareDialog onClose={() => setSharing(false)} />}
